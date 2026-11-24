@@ -1,0 +1,105 @@
+{
+  "stage": "control_verifier",
+  "input_hash": "55f4948381fb87b5ecad03fba7f8922748eb073a4d8aaf1c735f128554715a03",
+  "seconds": 4.736,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 11719,
+        "output_tokens": 963,
+        "total_tokens": 12682,
+        "input_token_details": {
+          "cache_read": 1152,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "checks": [
+      {
+        "target": "store.portable() payload completeness (email, amount, term, income)",
+        "required_behavior": "For an accepted contract, the portable export must return all four borrower-provided fields: email, amount, term and income.",
+        "observed_code_behavior": "portable(c) gates on stage=='accepted' then returns a dict comprehension over keys (\"email\",\"amount\",\"income\") only. 'term' is persisted on the case row (schema line 37, insert line 77-78) and available in c, but is not included in the returned payload. The four-field completeness requirement is therefore not met.",
+        "outcome": "contradicts",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 114,
+            "end_line": 116,
+            "role": "operation",
+            "explanation": "portable() returns only email, amount, income; 'term' omitted from the key tuple."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 36,
+            "end_line": 38,
+            "role": "propagation",
+            "explanation": "Case schema persists term alongside email, amount, income, so term is available but not exported."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 77,
+            "end_line": 78,
+            "role": "trigger",
+            "explanation": "Application submission stores term from the form into the case row."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Machine-readable export route GET /case/<id>/portable",
+        "required_behavior": "The four fields must be returned as machine-readable structured data to the borrower.",
+        "observed_code_behavior": "Route serves op=='portable' as application/json with attachment disposition, owner-gated (who==c['owner']), serializing store.portable(c) via json.dumps. Machine-readable format is satisfied; content completeness is governed by the portable() check.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "app.py",
+            "start_line": 100,
+            "end_line": 109,
+            "role": "operation",
+            "explanation": "portable branch sets mime application/json, attachment disposition, and json.dumps body; owner gate at 0105."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Exclusion of inferred decisions from portable payload",
+        "required_behavior": "Inferred decisions (stage, decision outcome, confirmed band) must not be included in the portable export.",
+        "observed_code_behavior": "portable() returns only the three provided keys; no stage, confirmed, or decision field is included.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 114,
+            "end_line": 116,
+            "role": "control",
+            "explanation": "Key tuple limited to provided fields; derived decision fields excluded."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Direct transfer to selected local receiver (transfer action)",
+        "required_behavior": "On request, the same portable fields must be transmitted to the selected local receiving controller.",
+        "observed_code_behavior": "transfer action requires destination=='Local Credit Union' and persists json.dumps(portable(c)) into receiver table. It reuses the same incomplete portable() payload, so 'term' is likewise absent from the transferred data.",
+        "outcome": "contradicts",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 201,
+            "end_line": 204,
+            "role": "operation",
+            "explanation": "Transfer writes portable(c) to receiver; inherits the missing 'term' from portable()."
+          }
+        ],
+        "decisive_unknown": ""
+      }
+    ],
+    "proposed_status": "CONTRADICTED",
+    "summary": "The export is machine-readable (application/json attachment, owner-gated) and excludes inferred decisions, and the transfer path targets the selected local receiver. However, store.portable() returns only email, amount and income — 'term' is persisted on the case row but omitted from the payload. Both the borrower download and the direct transfer reuse this incomplete payload, so the four-field completeness requirement fails for both required targets.",
+    "missing_information": []
+  }
+}

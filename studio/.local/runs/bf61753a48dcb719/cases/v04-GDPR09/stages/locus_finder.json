@@ -1,0 +1,78 @@
+{
+  "stage": "locus_finder",
+  "input_hash": "93d779a903f6e5dbfa2d65e58fd9ac47d6500434677dce745f696acd0d17694f",
+  "seconds": 5.327,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 10570,
+        "output_tokens": 828,
+        "total_tokens": 11398,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "loci": [
+      {
+        "artifact": "store.py",
+        "start_line": 124,
+        "end_line": 143,
+        "rationale": "drain() is the ordinary-use executor. Line 0127 skips non-score jobs when restricted, but the score branch (0131-0136) has no restricted check, so a queued score still runs and sets stage offered/declined from the disputed band — the core violation of 18(1)(a)."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 175,
+        "end_line": 178,
+        "rationale": "The 'restrict' action sets restricted=1 and logs 'Ordinary processing paused', establishing the restriction state that drain() must honor."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 85,
+        "end_line": 86,
+        "rationale": "queue() inserts jobs with no restriction awareness; nothing prevents a score job from being queued or re-queued while restricted (retries)."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 81,
+        "end_line": 82,
+        "rationale": "submit() queues the 'score' job for automatic route, the pending job that the scenario says is queued before the dispute."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 179,
+        "end_line": 186,
+        "rationale": "notify-release requires restricted==1 and stores the verified band, setting restricted=2; release requires restricted==2 before clearing — the prior-notification ordering control (18(2)/(3)) is present."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 131,
+        "end_line": 133,
+        "rationale": "Scoring uses confirmed or declared band and compares against LIMITS — the verified-data use after release (18(3)) and the disputed data used during restriction."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 150,
+        "end_line": 152,
+        "rationale": "The 'drain' action entrypoint invokes drain() for any case, including restricted ones, with no gate."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 36,
+        "end_line": 44,
+        "rationale": "Schema: cases.restricted flag and jobs table with state 'queued' — the state fields the predicate depends on."
+      }
+    ],
+    "path_summary": "Entrypoint: POST /case/<id>/drain -> store.action (store.py:0150-0152) -> drain() (0124-0143). Restriction is set by 'restrict' (0175-0178) to restricted=1. drain() skips non-score jobs when restricted (0127) but the score branch (0131-0136) lacks any restricted check, so a queued score job (queued at submit, 0081-0082) still executes and sets stage offered/declined using the disputed band — ordinary scoring continues despite the restriction. queue() (0085-0086) has no restriction guard, so retries/re-queues are also unblocked. The notification-before-release ordering is enforced (0179-0186: release requires restricted==2 set only by notify-release), and verified data (confirmed) is preferred in scoring (0132). Net: the stop-ordinary-use predicate fails for scoring jobs.",
+    "missing_boundaries": [
+      "No runtime verification that a score job is actually queued in the scenario database; scenario states it is queued before the dispute.",
+      "No code path cancels or blocks queued score jobs on restriction; absence confirmed only by static reading of supplied source.",
+      "No hidden/upstream implementation inferred; conclusions rest solely on supplied artifacts."
+    ]
+  }
+}

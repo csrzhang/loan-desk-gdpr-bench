@@ -1,0 +1,79 @@
+{
+  "stage": "locus_finder",
+  "input_hash": "e8ea1559de1576c6e3f8b730a60aac695636303adb04721f302834995dc391cc",
+  "seconds": 4.535,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 10709,
+        "output_tokens": 844,
+        "total_tokens": 11553,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "loci": [
+      {
+        "artifact": "store.py",
+        "start_line": 88,
+        "end_line": 90,
+        "rationale": "enabled() reads the latest choices row for the exact (owner, purpose) pair; no row => False, so insights default off and a promotions row cannot satisfy the insights gate."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 92,
+        "end_line": 98,
+        "rationale": "preference() restricts purposes to insights/promotions/objection and values to on/off, writes a versioned, timestamped record, and cancels queued report jobs on insights off (withdrawal)."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 42,
+        "end_line": 42,
+        "rationale": "choices schema stores owner, purpose, value, version and timestamp — the versioned consent record."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 11,
+        "end_line": 11,
+        "rationale": "VERSION constant written into each choice record."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 137,
+        "end_line": 139,
+        "rationale": "Insights 'report' job executes only when enabled(owner,'insights') — the downstream processing gate."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 165,
+        "end_line": 171,
+        "rationale": "Report action requires enabled(who,'insights') before queueing; promotion action uses eligible_campaign (promotions purpose only)."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 100,
+        "end_line": 103,
+        "rationale": "Campaign eligibility reads only 'promotions' and 'objection' purposes, never 'insights' — promotions choice cannot authorize insights."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 33,
+        "end_line": 36,
+        "rationale": "Separate per-purpose switch forms for insights, promotions and objection; enabling requires an explicit 'on' submission (affirmative opt-in), and the application form (views.py:0031-0032) requires no consent."
+      }
+    ],
+    "path_summary": "Entry: POST /preference (app.py:0085-0087) -> store.preference validates purpose/value and inserts a versioned choices row (store.py:0092-0098). Read path: enabled() selects the latest row for the exact (owner,purpose) (store.py:0088-0090). Downstream uses: report action requires enabled(...,'insights') (store.py:0167-0168) and drain executes 'report' only when enabled(...,'insights') (store.py:0137-0139); campaign eligibility uses only 'promotions'/'objection' (store.py:0100-0103, 0140). Core application submit() (store.py:0065-0083) and dashboard application form (views.py:0031-0032) do not depend on any consent, so the core app remains available with insights off. UI renders separate per-purpose switches (views.py:0033-0036).",
+    "missing_boundaries": [
+      "No runtime/database inspection: whether a given user actually toggled insights on is not established by the snapshot; only the code-level gate is assessed.",
+      "No assessment of Art. 7(2) notice intelligibility beyond presence of separate per-purpose controls and NOTICE text (store.py:0009).",
+      "No assessment of other obligations (Art. 6(1)(b) contract basis, Art. 22 automated decisions, retention) beyond the named insights-consent predicate.",
+      "No inference about upstream or hidden implementation; only supplied app.py, store.py, views.py, style.css considered."
+    ]
+  }
+}

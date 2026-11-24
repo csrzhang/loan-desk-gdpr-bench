@@ -1,0 +1,79 @@
+{
+  "stage": "locus_finder",
+  "input_hash": "8ff3d1610ff233f7d2e3017c48d17cffb89d8c036151e95f85fde82a5684635c",
+  "seconds": 4.101,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 10569,
+        "output_tokens": 784,
+        "total_tokens": 11353,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "loci": [
+      {
+        "artifact": "app.py",
+        "start_line": 68,
+        "end_line": 70,
+        "rationale": "Authentication prerequisite: unauthenticated requests cannot reach any case route; only the login page is served."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 92,
+        "end_line": 95,
+        "rationale": "Entrypoint: /case/{id} and /case/{id}/offer are parsed and resolved through store.get_case(db, who, cid) before any branch."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 55,
+        "end_line": 58,
+        "rationale": "Decisive authorization gate: case row selected only WHERE id=? AND (owner=? OR officer=?); otherwise 404. This is the single principal check for both routes."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 110,
+        "end_line": 112,
+        "rationale": "Ordinary case route (op is None) served after the gate with no further principal check; body built from store.access on the gated row."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 100,
+        "end_line": 103,
+        "rationale": "Offer download route served after the gate; added condition is stage/restriction availability only, not an access exception."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 111,
+        "end_line": 112,
+        "rationale": "Offer payload (case id, email, amount, term) derived from the case object already gated by get_case."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 77,
+        "end_line": 77,
+        "rationale": "Dashboard listing filters by owner or officer, consistent with the same permitted principal set."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 105,
+        "end_line": 106,
+        "rationale": "Contrast: owner-only check applies to access/portable, not to the ordinary case or offer routes; confirms the offer route relies solely on get_case."
+      }
+    ],
+    "path_summary": "Request enters Application.__call__; unauthenticated requests are rejected at app.py:0068-0070. Authenticated requests reach the /case/{id}[/op] branch (app.py:0092-0095), which resolves the case via store.get_case (store.py:0055-0058) — the sole authorization gate, restricting to owner or assigned officer and returning 404 otherwise. The ordinary case view (app.py:0110-0112) and the offer download (app.py:0100-0103, payload from store.offer at store.py:0111-0112) are served only after that gate. The offer route's stage/restriction condition is availability, not an access exception; the owner-only check at app.py:0105 covers access/portable only. Dashboard listing (app.py:0077) uses the same principal set. Static reading only; no execution.",
+    "missing_boundaries": [
+      "No execution, oracle or runtime verification was performed; assessment is static reading of the supplied snapshot.",
+      "Session handling is in-memory (app.py:0024, 0046-0047); fixation/expiry behavior beyond the shown 8-hour expiry is not evaluated.",
+      "Behavior of any code not present in the supplied artifacts cannot be assessed; no upstream or hidden implementation is inferred.",
+      "The offer route's stage/restriction condition is noted but not assessed against other obligations."
+    ]
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "case_id": "v04-GDPR07",
+  "verdict": "CONTRADICTED",
+  "explanation": "Code facts: The owner-facing rectification path is reachable: views.py 0067 renders a \"Save corrected email\" form posting to /case/<id>/correct, and app.py 0097-0099 dispatches POST /case/<id>/correct to store.action(db,who,cid,\"correct\",data) with the target cid. store.action resolves the case by id and requires owner for non-staff ops (store.py 0145-0156). The 'correct' branch (store.py 0172-0174) calls email(data.get(\"email\",\"\")) — which only validates and returns the value (store.py 0060-0063) — and then inserts a \"correction\" event; it issues no UPDATE of cases.email, so the cases.email column retains the original address. Offers are produced by GET /case/<id>/offer (app.py 0100-0109) via store.offer(db,c), which builds \"to\" from c[\"email\"] (store.py 0111-0112); c comes from get_case, which re-reads the row from SQLite (store.py 0055-0058) over a fresh per-request connection committed on context exit (store.py 0022-0031). Because no email UPDATE is ever committed, a reopened database yields the original address in the next offer.\n\nRequirement: Article 16 rectification, as scoped: persist the requested correction to this case and use the corrected address in subsequent offers, including after reopening storage; a separate live case must be unaffected. The scenario supplies the trigger (borrower corrects a contact email) and the persistence/reopen condition; no exception applies, since restriction (store.py 0175-0178) pauses ordinary processing but does not exempt rectification and erase is limited to abandoned cases (store.py 0210-0212).\n\nJustification: The predicate requires both persistence of the corrected email and its use in later offers. The source shows the correction is only recorded as an event, not written to the case row, and the offer recipient is derived exclusively from that row's email column read through a fresh connection. This is a supported in-scope counterexample: an owner correction followed by an offer (even after reopening) yields the stale address, so the requirement is contradicted. Per-case scoping and owner authorization are present (store.py 0145-0156; app.py 0097-0099), so the separate live case is unaffected; that sub-condition does not rescue the verdict. No execution was performed; the conclusion rests on the visible absence of an email UPDATE in the correct branch.",
+  "evidence": [
+    {
+      "path": "store.py",
+      "start_line": 172,
+      "end_line": 174,
+      "quote": "    elif op==\"correct\":\n        email(data.get(\"email\",\"\"))\n        event(db,cid,\"correction\",\"Contact email updated.\")",
+      "supports": "The 'correct' branch validates the email and inserts a 'correction' event only; no UPDATE of cases.email is issued, so the corrected address is not written to the case row."
+    },
+    {
+      "path": "store.py",
+      "start_line": 60,
+      "end_line": 63,
+      "quote": "def email(value):\n    import re\n    require(re.fullmatch(r\"[^@\\s]+@[^@\\s]+\\.[^@\\s]+\",value) and len(value)<=254,\"Enter a contact email.\")\n    return value",
+      "supports": "email() only validates and returns the value; the return is discarded in the correct branch, confirming no write occurs."
+    },
+    {
+      "path": "store.py",
+      "start_line": 111,
+      "end_line": 112,
+      "quote": "def offer(db,c):\n    return {\"case\":c[\"id\"],\"to\":c[\"email\"],\"amount_eur\":c[\"amount\"],\"term_months\":c[\"term\"]}",
+      "supports": "offer() builds the recipient 'to' from c['email'], the stored case row field, so offers depend on the persisted column being updated."
+    },
+    {
+      "path": "store.py",
+      "start_line": 55,
+      "end_line": 58,
+      "quote": "def get_case(db, who, cid):\n    row = db.execute(\"SELECT * FROM cases WHERE id=? AND (owner=? OR officer=?)\",(cid,who,who)).fetchone()\n    require(row, \"Case unavailable.\", 404)\n    return dict(row)",
+      "supports": "get_case re-reads the case row from SQLite per request, so the offer path reflects only the persisted email column."
+    },
+    {
+      "path": "store.py",
+      "start_line": 22,
+      "end_line": 31,
+      "quote": "@contextmanager\ndef database(path):\n    db = sqlite3.connect(path, timeout=10)\n    db.row_factory = sqlite3.Row\n    db.execute(\"PRAGMA foreign_keys=ON\")\n    try:\n        with db:\n            yield db\n    finally:\n        db.close()",
+      "supports": "Fresh connection per request with commit on context exit; persistence across reopening depends on an UPDATE being issued, which the correct branch does not do."
+    },
+    {
+      "path": "app.py",
+      "start_line": 97,
+      "end_line": 99,
+      "quote": "                        if method==\"POST\" and op:\n                            store.action(db,who,cid,op,data)\n                            location=\"/\" if op==\"erase\" else f\"/case/{cid}\"",
+      "supports": "POST /case/<id>/correct dispatches to store.action with op='correct', scoping the request to the target case id."
+    },
+    {
+      "path": "app.py",
+      "start_line": 100,
+      "end_line": 109,
+      "quote": "                        elif method==\"GET\" and op in (\"access\",\"portable\",\"offer\"):\n                            if op==\"offer\":\n                                require(c[\"stage\"] in (\"accepted\",\"offered\") and not c[\"restricted\"],\"Offer unavailable.\",409)\n                                item=store.offer(db,c)\n                            else:\n                                require(who==c[\"owner\"],\"Borrower required.\",403)\n                                item=store.access(db,c) if op==\"access\" else store.portable(c)\n                            mime=\"application/json\"\n                            headers.append((\"Content-Disposition\",f'attachment; filename=\"loan-{cid}-{op}.json\"'))\n                            body=json.dumps(item,indent=2)",
+      "supports": "Offer endpoint calls store.offer(db,c) and serializes the result, so the recipient derives from the stored row."
+    },
+    {
+      "path": "store.py",
+      "start_line": 145,
+      "end_line": 156,
+      "quote": "def action(db,who,cid,op,data):\n    c=get_case(db,who,cid)\n    owner=who==c[\"owner\"]\n    staff=who==c[\"officer\"]\n    stage=c[\"stage\"]\n    if op==\"drain\":\n        drain(db,c)\n        return\n    if op in (\"verify\",\"review\",\"notify-release\",\"release\"):\n        require(staff,\"Assigned officer required.\",403)\n    else:\n        require(owner,\"Borrower required.\",403)",
+      "supports": "action() resolves the case by id and requires owner for non-staff ops, scoping correction to the target case and leaving other cases untouched."
+    },
+    {
+      "path": "views.py",
+      "start_line": 66,
+      "end_line": 67,
+      "quote": "    if owner:\n        controls+=f'<p><a href=\"{base}/access\">Download access copy</a></p>'+act(\"correct\",\"Save corrected email\",inputbox(\"Correct contact email\",\"email\",\"email\"))",
+      "supports": "UI exposes the 'correct' form to the owner with an email field, confirming the rectification path is reachable."
+    }
+  ]
+}

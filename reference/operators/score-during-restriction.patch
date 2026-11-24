@@ -1,0 +1,11 @@
+--- a/store.py
++++ b/store.py
+@@ -124,7 +124,7 @@
+ def drain(db,c):
+     cid=c["id"]
+     for job in rows(db,"SELECT * FROM jobs WHERE cid=? AND state='queued' ORDER BY id",(cid,)):
+-        if c["restricted"]:
++        if c["restricted"] and job["kind"] != "score":
+             continue
+         kind=job["kind"]
+         state="cancelled"

@@ -1,0 +1,11 @@
+--- a/store.py
++++ b/store.py
+@@ -113,7 +113,7 @@
+ 
+ def portable(c):
+     require(c["stage"]=="accepted","Accept an offer to export this contract.",409)
+-    return {k:c[k] for k in ("email","amount","term","income")}
++    return {k:c[k] for k in ("email","amount","income")}
+ 
+ def access(db,c):
+     cid=c["id"]

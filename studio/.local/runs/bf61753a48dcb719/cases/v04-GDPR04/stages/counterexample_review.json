@@ -1,0 +1,98 @@
+{
+  "stage": "counterexample_review",
+  "input_hash": "8b2d6df0f24bcba276eef16556125bd36e22d8144e25118a4f64381bd81f8d60",
+  "seconds": 5.458,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 13632,
+        "output_tokens": 1094,
+        "total_tokens": 14726,
+        "input_token_details": {
+          "cache_read": 896,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "recommended_status": "SUPPORTED",
+    "counterexamples": [
+      "Attempted counterexample: a report job queued for the withdrawing borrower after the insights-off choice (e.g., via /case/<id>/report) would be blocked at execution because drain() requires enabled(owner,'insights') (store.py:0137) — so no in-scope counterexample survives.",
+      "Attempted counterexample: a second drain resurrecting a cancelled report — drain() selects only state='queued' (store.py:0126) and cancelled state is persisted (store.py:0143), so no resurrection.",
+      "Attempted counterexample: withdrawal cancelling the other borrower's queued report — cancellation is scoped by cid IN (SELECT id FROM cases WHERE owner=?) (store.py:0098), so the unaffected borrower's job remains queued and passes the per-owner enabled() gate (store.py:0088-0090, 0137)."
+    ],
+    "unsupported_assumptions": [
+      "The draft's 'no retry path' framing is accurate for the supplied source; no separate retry/backoff mechanism exists, so 'retries' reduce to repeated drain() calls — this is a boundary, not a defect.",
+      "The scenario's 'drained twice' outcome is stipulated, not observed; the assessment correctly limits itself to static reading."
+    ],
+    "anchors": [
+      {
+        "artifact": "store.py",
+        "start_line": 92,
+        "end_line": 98,
+        "role": "operation",
+        "explanation": "preference() is the withdrawal entrypoint; on ('insights','off') it cancels queued 'report' jobs scoped to the withdrawing owner's cases only."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 85,
+        "end_line": 87,
+        "role": "propagation",
+        "explanation": "POST /preference dispatches purpose/value to store.preference, so on and off share the same route."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 33,
+        "end_line": 36,
+        "role": "control",
+        "explanation": "Single toggle form per purpose; 'Switch off' shown when enabled via the same /preference action — symmetric withdrawal control."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 9,
+        "end_line": 9,
+        "role": "control",
+        "explanation": "NOTICE discloses optional separate consent, ease of switching off, and future-only effect."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 24,
+        "end_line": 25,
+        "role": "propagation",
+        "explanation": "notice() renders NOTICE to the user before choices are made."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 88,
+        "end_line": 90,
+        "role": "control",
+        "explanation": "enabled() reads the latest choice per owner/purpose, making the gate owner-scoped."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 124,
+        "end_line": 128,
+        "role": "control",
+        "explanation": "drain() selects only state='queued' jobs, so cancelled reports are not re-selected on a second drain."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 137,
+        "end_line": 139,
+        "role": "control",
+        "explanation": "Report branch requires enabled(owner,'insights'); withdrawn consent blocks generation even if a job remained queued."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 143,
+        "end_line": 143,
+        "role": "propagation",
+        "explanation": "Job state persisted after processing; cancelled jobs are not re-run by subsequent drains."
+      }
+    ],
+    "review_summary": "Confirmed SUPPORTED. Applicability is present (voluntary optional insights consent, EU-established private controller, adult). Each required target is independently verified against the source: symmetric withdrawal via the same /preference form and route (views.py:0033-0036; app.py:0085-0087; store.py:0092-0095); prior information in NOTICE and privacy-choices copy (store.py:0009; views.py:0024-0025, 0033); cancellation of already queued report jobs on insights-off (store.py:0096-0098); execution-time gate on enabled(owner,'insights') (store.py:0088-0090, 0137-0139); no retry of cancelled work because drain() selects only state='queued' and persists state (store.py:0124-0128, 0143); owner-scoped cancellation and per-owner gate preserve the unaffected borrower's queued report (store.py:0098, 0088-0090, 0137). No feasible in-scope counterexample found. Static reading only; no execution performed."
+  }
+}

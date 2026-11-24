@@ -1,0 +1,49 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "517320836eaab2b575b483a8bb611cb0a2dc897c02239d5a854de58a8a46eedd",
+  "seconds": 4.621,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9857,
+        "output_tokens": 659,
+        "total_tokens": 10516,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "A borrower-submitted correction of the contact email is persisted to the case record and the corrected address is used in subsequent offers, including after the storage is reopened (new connection/process).",
+    "applicability_facts": [
+      "Scenario: EU-established private controller, synthetic adult borrower; each scenario starts in its own database (case-0328e7ce0df1410f).",
+      "Scenario: borrower corrects a contact email; after reopening the database the next offer must use the corrected address.",
+      "Scenario: a separate live case is unaffected (per-case scoping required).",
+      "store.py:0036-0038 defines cases table with an email column; store.py:0111-0112 offer() builds the offer payload from c[\"email\"].",
+      "app.py:0097-0099 routes POST /case/<id>/<op> to store.action; app.py:0100-0103 serves GET /case/<id>/offer via store.offer(db,c).",
+      "views.py:0067 exposes the 'correct' action form with an email field to the owner."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "No exception applies: the scenario stipulates a live, unrestricted case with a valid correction request; restriction (store.py:0175-0178) and erasure (store.py:0210-0212) paths are not invoked by the scenario.",
+      "Officer-only actions (store.py:0153-0156) are not relevant; correction is an owner action."
+    ],
+    "required_controls": [
+      "store.action 'correct' branch (store.py:0172-0174) must persist the validated email to cases.email for the target cid, not only record an event.",
+      "Persistence must be committed through the database context manager (store.py:0022-0031) so it survives reopening the SQLite file.",
+      "store.offer (store.py:0111-0112) must read the persisted cases.email so the next offer reflects the correction.",
+      "The update must be scoped by cid (WHERE id=?) so a separate live case's email is unchanged.",
+      "Validation via store.email (store.py:0060-0063) should be applied to the submitted value before persistence."
+    ],
+    "assessment_limits": [
+      "Assessment is based solely on the supplied source text; no execution, database reopening, or runtime verification was performed.",
+      "Only the named obligation (persist correction and use it in subsequent offers after reopening) is assessed; other GDPR articles and unrelated behaviors are out of scope.",
+      "The scenario's 'separate live case unaffected' is treated as a scoping requirement; no cross-case data was inspected.",
+      "No claim is made about upstream or hidden implementation beyond the provided artifacts."
+    ]
+  }
+}

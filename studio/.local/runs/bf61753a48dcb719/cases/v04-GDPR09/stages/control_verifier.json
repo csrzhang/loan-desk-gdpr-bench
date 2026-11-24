@@ -1,0 +1,119 @@
+{
+  "stage": "control_verifier",
+  "input_hash": "f8c3d622652a1fb7d23ee86eadd0256b2ca8b6d4ab0d09615b59fa3b6c741e83",
+  "seconds": 5.357,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 11878,
+        "output_tokens": 1065,
+        "total_tokens": 12943,
+        "input_token_details": {
+          "cache_read": 1152,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "checks": [
+      {
+        "target": "drain() score branch vs restricted flag (store.py:0124-0143)",
+        "required_behavior": "While a case is restricted (restricted=1) for a disputed income band, ordinary scoring of a queued score job must not run.",
+        "observed_code_behavior": "drain() iterates queued jobs; line 0127 skips non-score jobs when c['restricted'] is truthy, but the score branch at 0131-0136 has no restricted check. A queued 'score' job with route 'automatic' and stage 'pending' executes, computes band from confirmed/income, and updates stage to offered/declined. Thus a queued score runs despite restricted=1.",
+        "outcome": "contradicts",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 126,
+            "end_line": 127,
+            "role": "control",
+            "explanation": "Restriction gate applies only to non-score jobs; score jobs are not skipped."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 131,
+            "end_line": 135,
+            "role": "operation",
+            "explanation": "Score branch executes without any restricted check, using the disputed band and mutating stage."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 150,
+            "end_line": 152,
+            "role": "trigger",
+            "explanation": "drain action entrypoint invokes drain() for any case with no restriction gate."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "queue() re-queue/retry of score jobs while restricted (store.py:0085-0086)",
+        "required_behavior": "No new or retried score job may be queued for a restricted case.",
+        "observed_code_behavior": "queue() inserts a jobs row with no reference to the case's restricted flag; nothing prevents queuing a score job for a restricted case.",
+        "outcome": "contradicts",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 85,
+            "end_line": 86,
+            "role": "operation",
+            "explanation": "queue() inserts jobs unconditionally, with no restriction awareness."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "notify-before-release ordering (store.py:0179-0186)",
+        "required_behavior": "Restriction may only be lifted after the applicant is notified.",
+        "observed_code_behavior": "'notify-release' requires restricted==1 and sets restricted=2; 'release' requires restricted==2 before clearing to 0. The ordering control is present.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 179,
+            "end_line": 182,
+            "role": "control",
+            "explanation": "notify-release sets restricted=2 only from restricted==1."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 183,
+            "end_line": 186,
+            "role": "control",
+            "explanation": "release requires restricted==2 before lifting."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "verified data used after release (store.py:0132, 0181)",
+        "required_behavior": "After notification and release, the verified band is used for scoring.",
+        "observed_code_behavior": "notify-release stores confirmed band; drain() prefers c['confirmed'] over c['income'].",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 181,
+            "end_line": 181,
+            "role": "propagation",
+            "explanation": "Verified band persisted to confirmed."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 132,
+            "end_line": 132,
+            "role": "propagation",
+            "explanation": "Scoring uses confirmed band when present."
+          }
+        ],
+        "decisive_unknown": ""
+      }
+    ],
+    "proposed_status": "CONTRADICTED",
+    "summary": "The restriction flag is honored for non-score jobs but not for score jobs: drain() skips only non-score jobs when restricted (store.py:0127), while the score branch (0131-0136) has no restricted check and will execute a queued score, mutating stage from the disputed band. queue() (0085-0086) also has no restriction guard, so retries/re-queues are unblocked. The notify-before-release ordering (0179-0186) and verified-data use (0132, 0181) are present, but the core stop-ordinary-scoring requirement fails, so the obligation is contradicted.",
+    "missing_information": []
+  }
+}

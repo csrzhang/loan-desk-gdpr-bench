@@ -1,0 +1,50 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "40911a856ffcaf79cb02ff39a55458108ad08ee3c7ac71a01fa6c0edd2b7feac",
+  "seconds": 6.589,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9836,
+        "output_tokens": 779,
+        "total_tokens": 10615,
+        "input_token_details": {
+          "cache_read": 768,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "The application form and the accepted /apply payload (and everything persisted or sent onward from it) must be limited to the fields necessary for the stated purpose: contact email (delivery), amount and term (requested offer), and income band (assessment). No field without a business purpose in this fixture (e.g. a hobby) may be collected, accepted, persisted or forwarded.",
+    "applicability_facts": [
+      "Scenario: loan application submitted with email for delivery, amount and term for the requested offer, income band for assessment; a hobby has no business purpose in this fixture.",
+      "views.py:0031 builds the /apply form with exactly email, amount, term, income (plus the auto route checkbox at 0032); no hobby or other extraneous input is rendered.",
+      "store.py:0067 submit() enforces an allow-list: set(data) <= {email, amount, term, income, auto}, rejecting any other field with 'Unexpected application field.'",
+      "store.py:0077-0078 persists only owner, officer, email, amount, term, income, route, stage; the cases schema (store.py:0036-0038) has no column for extraneous attributes.",
+      "store.py:0112 offer() sends onward only case id, email, amount, term; store.py:0116 portable() exports only email, amount, income; store.py:0203 transfer() forwards that same portable subset.",
+      "store.py:0009 NOTICE states the required application fields are contact email, amount, term and income band, matching the collected set."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "The 'auto' checkbox (views.py:0032, store.py:0074-0075) is an optional route/consent choice, not an applicant attribute; it is within the allow-list and is not an extraneous data field.",
+      "No minimization exception (e.g. further-processing compatibility) is invoked or needed; the fixture's stated purpose covers exactly the collected fields."
+    ],
+    "required_controls": [
+      "Form renders only necessary inputs: email, amount, term, income band (views.py:0031).",
+      "Server-side allow-list on the accepted payload rejects unexpected fields (store.py:0067).",
+      "Persistence limited to the necessary columns; no schema slot for extraneous attributes (store.py:0036-0038, 0077-0078).",
+      "Onward disclosure (offer, portable export, transfer to receiving controller) limited to the necessary subset (store.py:0112, 0116, 0203).",
+      "Notice aligns declared required fields with the collected set (store.py:0009)."
+    ],
+    "assessment_limits": [
+      "Assessment is static reading of the supplied source; no code was executed and no runtime behavior was observed.",
+      "Only the named obligation (GDPR 5(1)(c) application-field minimization) is assessed; other GDPR duties (e.g. consent, retention, rights) are out of scope.",
+      "No compliance conclusion is drawn from the rule text alone; it rests on the supplied scenario facts and source coordinates.",
+      "Fields outside the /apply path (login, preference, campaign, action forms) were not evaluated for minimization beyond noting they are separate flows.",
+      "No hidden implementation or upstream repository behavior is inferred."
+    ]
+  }
+}

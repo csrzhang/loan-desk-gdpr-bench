@@ -1,0 +1,172 @@
+{
+  "stage": "control_verifier",
+  "input_hash": "4d0e49e98ac4b0d0888f3f4106e2a74602d1e33f9a78242bd36430172934f399",
+  "seconds": 6.55,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 12033,
+        "output_tokens": 1438,
+        "total_tokens": 13471,
+        "input_token_details": {
+          "cache_read": 1152,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "checks": [
+      {
+        "target": "Purpose separation in enabled() read (store.py:0088-0090)",
+        "required_behavior": "The insights gate must read only the 'insights' purpose so a 'promotions' choice cannot satisfy it.",
+        "observed_code_behavior": "enabled() selects the latest choices row WHERE owner=? AND purpose=? with the caller-supplied purpose; no row yields False. Insights and promotions are distinct purpose values, so a promotions row cannot satisfy an insights query.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 88,
+            "end_line": 90,
+            "role": "control",
+            "explanation": "Exact (owner,purpose) lookup; default False when no matching row."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Affirmative opt-in / default off (store.py:0088-0090, 0093; views.py:0036)",
+        "required_behavior": "Insights processing requires a specific affirmative choice; default state is off.",
+        "observed_code_behavior": "No choices row => enabled() returns False (off). preference() accepts only value in ('on','off') and stores int(value=='on'); the UI submits an explicit 'on' only via the per-purpose switch form.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 88,
+            "end_line": 90,
+            "role": "control",
+            "explanation": "Absence of row yields False."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 92,
+            "end_line": 95,
+            "role": "operation",
+            "explanation": "Validates on/off and persists int(value=='on')."
+          },
+          {
+            "artifact": "views.py",
+            "start_line": 34,
+            "end_line": 36,
+            "role": "trigger",
+            "explanation": "Per-purpose switch form submits explicit on/off value."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Versioned consent record (store.py:0042, 0011, 0094-0095)",
+        "required_behavior": "Each insights choice is recorded with a version.",
+        "observed_code_behavior": "choices schema has version and at columns; preference() inserts VERSION constant and UTC timestamp with each row.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 42,
+            "end_line": 42,
+            "role": "control",
+            "explanation": "choices table stores purpose, value, version, at."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 11,
+            "end_line": 11,
+            "role": "control",
+            "explanation": "VERSION constant written into each choice."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 94,
+            "end_line": 95,
+            "role": "operation",
+            "explanation": "Insert includes version and timestamp."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Promotions choice cannot authorize insights (store.py:0100-0103, 0140)",
+        "required_behavior": "Campaign/promotion path must use only 'promotions' purpose, never 'insights'.",
+        "observed_code_behavior": "eligible_campaign() reads enabled(owner,'promotions') and objection only; drain 'promotion' branch uses eligible_campaign. No insights purpose consulted for promotions.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 100,
+            "end_line": 103,
+            "role": "control",
+            "explanation": "Eligibility uses promotions and objection purposes only."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 140,
+            "end_line": 141,
+            "role": "propagation",
+            "explanation": "Promotion job gated by eligible_campaign."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Insights processing gate downstream (store.py:0137-0139, 0167-0168)",
+        "required_behavior": "Insights/report processing runs only when insights consent is enabled.",
+        "observed_code_behavior": "drain 'report' branch requires enabled(owner,'insights'); report action requires enabled(who,'insights') before queueing.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 137,
+            "end_line": 139,
+            "role": "control",
+            "explanation": "Report job executes only if insights enabled."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 167,
+            "end_line": 168,
+            "role": "control",
+            "explanation": "Report action requires insights enabled."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Core application available without insights consent (store.py:0065-0083; views.py:0031-0032)",
+        "required_behavior": "Application submission and case handling must not depend on insights consent.",
+        "observed_code_behavior": "submit() validates only application fields and inserts the case; no choices/enabled reference. Dashboard application form requires no consent checkbox.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 65,
+            "end_line": 83,
+            "role": "operation",
+            "explanation": "submit() has no consent dependency."
+          },
+          {
+            "artifact": "views.py",
+            "start_line": 31,
+            "end_line": 32,
+            "role": "control",
+            "explanation": "Application form fields contain no consent requirement."
+          }
+        ],
+        "decisive_unknown": ""
+      }
+    ],
+    "proposed_status": "SUPPORTED",
+    "summary": "All in-scope targets are supported by the supplied source. enabled() reads the latest choices row for the exact (owner,purpose) pair, so insights and promotions are separate purposes and a promotions row cannot satisfy the insights gate; absence of a row yields off (affirmative opt-in). preference() persists a versioned, timestamped record and restricts purposes/values. Insights processing (report action and drain 'report' branch) is gated on enabled(...,'insights'); campaign eligibility uses only 'promotions'/'objection'. Core application submission and the dashboard form have no consent dependency, so the core app remains available with insights off. Static source reading only; no execution performed.",
+    "missing_information": []
+  }
+}

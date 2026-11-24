@@ -1,0 +1,96 @@
+{
+  "stage": "counterexample_review",
+  "input_hash": "7992bb9d05a9e65ab4fb7512a0298e058ba976c1c55d4b85611deaa1aed95089",
+  "seconds": 5.423,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 12582,
+        "output_tokens": 1088,
+        "total_tokens": 13670,
+        "input_token_details": {
+          "cache_read": 896,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "recommended_status": "CONTRADICTED",
+    "counterexamples": [
+      "Automatic-route case in stage 'pending' with a queued 'score' job (queued at submit, store.py:0081-0082); borrower disputes accuracy via 'restrict' (restricted=1, store.py:0175-0178); any authenticated party POSTs /case/<id>/drain -> action() calls drain() with no restriction gate (store.py:0150-0152); drain() skips only non-score jobs when restricted (store.py:0127) and the score branch (0131-0136) has no restricted check, so the queued score executes, computes band from confirmed/income, and sets stage to offered/declined — ordinary scoring of disputed data proceeds despite the restriction."
+    ],
+    "unsupported_assumptions": [
+      "The draft's 'queue() has no restriction guard' point is technically true but not a decisive counterexample: no code path re-queues a 'score' job (submit only queues score at creation, store.py:0081-0082; report/promotion are the only re-queueable kinds, store.py:0165-0171). The decisive defect is the drain() score branch, not queue().",
+      "The draft's 'retries' framing is not established by the source; there is no retry mechanism for score jobs. The violation rests on the single queued score job executing while restricted."
+    ],
+    "anchors": [
+      {
+        "artifact": "store.py",
+        "start_line": 126,
+        "end_line": 127,
+        "role": "control",
+        "explanation": "Restriction gate skips only non-score jobs; score jobs are not skipped, so the restriction does not stop ordinary scoring."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 131,
+        "end_line": 135,
+        "role": "operation",
+        "explanation": "Score branch executes with no restricted check, using the disputed band and mutating stage to offered/declined — the core 18(1)(a) violation."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 150,
+        "end_line": 152,
+        "role": "trigger",
+        "explanation": "drain action entrypoint invokes drain() for any case with no restriction gate."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 81,
+        "end_line": 82,
+        "role": "trigger",
+        "explanation": "submit() queues the 'score' job for the automatic route — the pending job the scenario says is queued before the dispute."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 175,
+        "end_line": 178,
+        "role": "control",
+        "explanation": "restrict sets restricted=1 and logs 'Ordinary processing paused', establishing the state drain() must honor."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 179,
+        "end_line": 186,
+        "role": "control",
+        "explanation": "notify-release requires restricted==1 and sets restricted=2; release requires restricted==2 before clearing — prior-notification ordering (18(2)/(3)) is present."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 132,
+        "end_line": 132,
+        "role": "propagation",
+        "explanation": "Scoring prefers confirmed band over declared income — verified-data use after release (18(3)) is present."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 181,
+        "end_line": 181,
+        "role": "propagation",
+        "explanation": "notify-release persists the verified band to confirmed."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 210,
+        "end_line": 212,
+        "role": "exception",
+        "explanation": "erase requires stage=='abandoned', so a restricted live case is retained for verification."
+      }
+    ],
+    "review_summary": "Confirmed CONTRADICTED. The restriction flag is honored for non-score jobs but not for score jobs: drain() skips only non-score jobs when restricted (store.py:0127), while the score branch (0131-0136) has no restricted check and will execute a queued score, mutating stage from the disputed band. The drain action entrypoint (0150-0152) has no restriction gate. The notify-before-release ordering (0179-0186) and verified-data use (0132, 0181) are present, and retention for verification holds (erase requires abandoned, 0210-0212). The core stop-ordinary-scoring requirement fails, so the obligation is contradicted. Minor correction to the draft: the 'queue()/retries' point is not a decisive counterexample since no path re-queues score jobs; the decisive defect is the drain() score branch."
+  }
+}

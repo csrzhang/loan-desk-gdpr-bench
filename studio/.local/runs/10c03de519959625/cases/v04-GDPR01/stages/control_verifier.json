@@ -1,0 +1,119 @@
+{
+  "stage": "control_verifier",
+  "input_hash": "5b608e4d1af1ac4deb836fc60211823d0d50f220e008a38a1232c662fe7b0c5f",
+  "seconds": 4.371,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 11899,
+        "output_tokens": 1000,
+        "total_tokens": 12899,
+        "input_token_details": {
+          "cache_read": 0,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "checks": [
+      {
+        "target": "Customer application form fields (views.py dashboard /apply form)",
+        "required_behavior": "Form collects only necessary applicant inputs: email, amount, term, income band (plus route choice), no purposeless field such as hobby.",
+        "observed_code_behavior": "The customer form renders inputbox email, amount, term select, income select, and an 'auto' checkbox; no hobby or other purposeless field is rendered.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "views.py",
+            "start_line": 31,
+            "end_line": 32,
+            "role": "operation",
+            "explanation": "Form fields limited to email, amount, term, income and the auto route checkbox."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Accepted /apply payload allowlist (store.submit)",
+        "required_behavior": "Server rejects any payload key outside the necessary set, so a purposeless field like 'hobby' cannot be accepted.",
+        "observed_code_behavior": "submit requires set(data) <= {email, amount, term, income, auto}; any other key raises 'Unexpected application field.'",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "app.py",
+            "start_line": 53,
+            "end_line": 55,
+            "role": "propagation",
+            "explanation": "Parsed form data passed through to submit."
+          },
+          {
+            "artifact": "app.py",
+            "start_line": 83,
+            "end_line": 84,
+            "role": "propagation",
+            "explanation": "/apply dispatches parsed data to store.submit."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 67,
+            "end_line": 67,
+            "role": "control",
+            "explanation": "Allowlist rejects unexpected keys such as hobby."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Persistence of application fields (cases table insert)",
+        "required_behavior": "Only necessary fields are persisted; no hobby column or value stored.",
+        "observed_code_behavior": "Schema has no hobby column; INSERT writes owner, officer, email, amount, term, income, route, stage; summary title derived from amount and term.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 36,
+            "end_line": 38,
+            "role": "control",
+            "explanation": "cases schema lacks any hobby column."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 77,
+            "end_line": 79,
+            "role": "operation",
+            "explanation": "Insert persists only necessary fields plus route/stage."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Onward sends (offer, portable, transfer)",
+        "required_behavior": "Onward payloads limited to necessary fields; no purposeless field forwarded.",
+        "observed_code_behavior": "offer() returns case id, email, amount, term; portable() returns email, amount, income; transfer stores that portable payload for the receiver.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 111,
+            "end_line": 116,
+            "role": "propagation",
+            "explanation": "offer and portable payloads limited to necessary fields."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 201,
+            "end_line": 203,
+            "role": "propagation",
+            "explanation": "Transfer persists only the portable payload."
+          }
+        ],
+        "decisive_unknown": ""
+      }
+    ],
+    "proposed_status": "SUPPORTED",
+    "summary": "The /apply form renders only email, amount, term, income and the auto route checkbox (views.py 31-32). The parsed payload is dispatched to store.submit (app.py 53-55, 83-84), which enforces an allowlist {email, amount, term, income, auto} and rejects any other key such as 'hobby' (store.py 67). Persistence writes only necessary fields into a schema with no hobby column (store.py 36-38, 77-79). Onward payloads are limited to email/amount/term (offer) and email/amount/income (portable/transfer) (store.py 111-116, 201-203). No purposeless field is collected, accepted, persisted, or forwarded.",
+    "missing_information": []
+  }
+}

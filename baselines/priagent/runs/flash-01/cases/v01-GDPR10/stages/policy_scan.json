@@ -1,0 +1,53 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "44b644c9dbf7d0e28e7fb95396c637d230ee76f05245ee74ef4d58ae9a9f095c",
+  "seconds": 4.095,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9860,
+        "output_tokens": 672,
+        "total_tokens": 10532,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "For an accepted contract, the four borrower-provided fields (email, amount, term, income) are returned as machine-readable data to the borrower and, on request, transferred to the selected local receiver; inferred decisions are excluded.",
+    "applicability_facts": [
+      "Scenario: automated processing of a current contract; borrower supplied email, amount, term and income.",
+      "Scenario: borrower downloads those fields and requests direct transfer to the feasible local receiver.",
+      "store.py:0114-0116 portable() requires stage=='accepted' and returns only email, amount, income — term is omitted.",
+      "store.py:0201-0204 transfer action requires destination=='Local Credit Union' and stores json.dumps(portable(c)) in receiver.payload.",
+      "app.py:0100-0109 GET /case/<id>/portable serves store.portable(c) as application/json with Content-Disposition attachment, gated to the owner (app.py:0105).",
+      "views.py:0069-0070 exposes the portable download and transfer form only when stage=='accepted'.",
+      "store.py:0036-0038 cases table stores email, amount, term, income as borrower-supplied columns; stage/route/confirmed are decision state, not part of portable output."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "store.py:0115 — export refused (409) unless stage=='accepted'; scenario states a current accepted contract, so the gate is satisfied.",
+      "store.py:0202 — transfer limited to destination 'Local Credit Union'; scenario states the feasible local receiver, so this is satisfied.",
+      "No international transfer modeled (store.py:0009 NOTICE); not an exception to the field set."
+    ],
+    "required_controls": [
+      "Machine-readable export: JSON response with attachment disposition (app.py:0107-0109).",
+      "Borrower-only access to the export (app.py:0105 owner check).",
+      "Export gated on accepted contract (store.py:0115).",
+      "Direct transfer to selected local receiver persisted as JSON payload (store.py:0201-0204).",
+      "Field set must be exactly the four provided fields: email, amount, term, income (store.py:0116 currently returns three).",
+      "Inferred decisions (stage, route, confirmed band, score outcomes) must be excluded from the portable payload."
+    ],
+    "assessment_limits": [
+      "Assessment is static reading of supplied source; no execution performed.",
+      "Only the named obligation (GDPR10) is assessed; other rights (access, erasure, restriction) not evaluated.",
+      "Whether the receiver fixture actually ingests the payload is outside the supplied source.",
+      "Legal characterization of 'machine-readable' format adequacy is not decided beyond JSON serialization.",
+      "No inference about upstream or hidden implementation."
+    ]
+  }
+}

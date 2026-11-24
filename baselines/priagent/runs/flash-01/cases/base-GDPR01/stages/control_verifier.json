@@ -1,0 +1,119 @@
+{
+  "stage": "control_verifier",
+  "input_hash": "486bb973b883171158c2b0b537b7052fcdc9181cfc5fa484ec75b99c26c6fa1e",
+  "seconds": 5.082,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 11811,
+        "output_tokens": 1142,
+        "total_tokens": 12953,
+        "input_token_details": {
+          "cache_read": 0,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "checks": [
+      {
+        "target": "Application form inputs rendered for customers (views.py dashboard)",
+        "required_behavior": "Form collects only purpose-relevant inputs: email (delivery), amount and term (offer), income band (assessment); no hobby or other non-purpose field.",
+        "observed_code_behavior": "The customer dashboard builds fields from notice() plus inputbox email, inputbox amount, select term [6,12,24,36], select income [low,medium,high], and an 'auto' checkbox. No hobby or other non-purpose input is rendered.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "views.py",
+            "start_line": 31,
+            "end_line": 32,
+            "role": "operation",
+            "explanation": "Renders exactly email, amount, term, income and the auto route checkbox; no hobby field."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Accepted /apply payload allowlist (store.submit)",
+        "required_behavior": "Server rejects any application field outside the necessary set {email, amount, term, income, auto}.",
+        "observed_code_behavior": "submit enforces set(data) <= {email, amount, term, income, auto} and raises 'Unexpected application field.' otherwise; app.py parses the form into data and forwards it to store.submit.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 67,
+            "end_line": 67,
+            "role": "control",
+            "explanation": "Allowlist rejects any field outside the necessary set, including a hobby."
+          },
+          {
+            "artifact": "app.py",
+            "start_line": 53,
+            "end_line": 55,
+            "role": "propagation",
+            "explanation": "Form payload parsed into data without synthesizing extra fields."
+          },
+          {
+            "artifact": "app.py",
+            "start_line": 83,
+            "end_line": 84,
+            "role": "propagation",
+            "explanation": "Route /apply forwards data to store.submit, the sole application persistence path."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Persistence of application fields (cases table insert and summary)",
+        "required_behavior": "Only purpose-relevant fields are persisted; no hobby or other non-purpose field stored.",
+        "observed_code_behavior": "Schema columns are email, amount, term, income, route, stage (plus owner/officer/confirmed/restricted); INSERT writes owner, officer, email, amount, term, income, route, stage; summary title uses amount and term only.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 36,
+            "end_line": 38,
+            "role": "control",
+            "explanation": "Schema has no hobby or other non-purpose column."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 77,
+            "end_line": 79,
+            "role": "operation",
+            "explanation": "Insert and summary write only purpose-relevant values."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Onward payloads: offer, portable, transfer to receiver",
+        "required_behavior": "Data sent onward is limited to purpose-relevant fields (email, amount, term, income).",
+        "observed_code_behavior": "offer() returns case id, email, amount, term; portable() returns email, amount, term, income; transfer stores json.dumps(portable(c)) in receiver. No hobby or other non-purpose field is included.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 111,
+            "end_line": 116,
+            "role": "propagation",
+            "explanation": "offer and portable payloads contain only purpose-relevant fields."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 201,
+            "end_line": 203,
+            "role": "propagation",
+            "explanation": "Transfer persists the portable payload (email, amount, term, income) only."
+          }
+        ],
+        "decisive_unknown": ""
+      }
+    ],
+    "proposed_status": "SUPPORTED",
+    "summary": "The customer form (views.py 31-32) renders only email, amount, term, income and the 'auto' route checkbox; no hobby or other non-purpose input. The /apply payload is parsed (app.py 53-55) and forwarded to store.submit (app.py 83-84), which enforces a field allowlist {email, amount, term, income, auto} (store.py 67), validates amount/term/income (69-74), and persists only purpose-relevant columns (store.py 36-38, 77-79). Onward payloads — offer (111-112), portable (114-116) and transfer to receiver (201-203) — carry only email, amount, term, income. No non-purpose field appears in the form, allowlist, schema, persistence or onward sending, so the minimization predicate holds across all in-scope targets.",
+    "missing_information": []
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "569da0bc47034ceb1fdb2f597ec7802e0d08c0b876a1a3627fa142f1355164cf",
+  "seconds": 10.805,
+  "invocations": 2,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9866,
+        "output_tokens": 666,
+        "total_tokens": 10532,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    },
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9866,
+        "output_tokens": 611,
+        "total_tokens": 10477,
+        "input_token_details": {
+          "cache_read": 9728,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "Partner-confirmed income band (cases.confirmed) must be used only for underwriting (credit decision); marketing audience selection and promotion delivery must rely solely on permitted subscription/consent fields (choices: promotions, objection) and case eligibility fields (restricted, stage), never on the confirmed income band.",
+    "applicability_facts": [
+      "Scenario: opted-in subscriber (promotions consent on) with a partner-confirmed income band stored for underwriting.",
+      "Scenario: no compatible marketing purpose and no new legal basis for targeting with that band.",
+      "store.py:0157-0160 verify stores partner band into cases.confirmed and logs it as 'for underwriting'.",
+      "store.py:0131-0135 drain uses confirmed band only for the automatic score/underwriting decision.",
+      "store.py:0100-0103 eligible_campaign selects audience from owner, restricted, stage and promotions/objection choices only.",
+      "store.py:0140-0142 promotion job emits a generic message without income band.",
+      "store.py:0111-0112 offer payload contains case id, email, amount, term — no income band."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "Separate optional consent for promotions (choices purpose 'promotions') and objection (purpose 'objection') gate marketing; these are the permitted marketing inputs, not a basis for using the income band.",
+      "No compatible-purpose or new-legal-basis exception is available in the scenario for marketing use of the confirmed band."
+    ],
+    "required_controls": [
+      "Underwriting-only use: confirmed band read solely in the score branch (store.py:0131-0135).",
+      "Marketing audience predicate restricted to identity, preferences and case eligibility (store.py:0100-0103).",
+      "Promotion delivery content free of income band (store.py:0140-0142).",
+      "Offer/portable outputs must not expose the confirmed band to marketing flows (store.py:0111-0112)."
+    ],
+    "assessment_limits": [
+      "Assessment is static source review only; no code was executed and no runtime behavior was observed.",
+      "Only the named obligation (purpose limitation for the confirmed income band in marketing) is assessed; other GDPR duties are out of scope.",
+      "portable() (store.py:0114-0116) exports the declared income field on data-portability request; that is a separate right, not marketing use, and is not assessed here.",
+      "No inference is made about upstream or hidden implementation beyond the supplied artifacts."
+    ]
+  }
+}

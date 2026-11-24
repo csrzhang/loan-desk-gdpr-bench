@@ -1,0 +1,91 @@
+{
+  "stage": "regulatory_arbiter",
+  "input_hash": "ef2060d941ffb150798df614ecc461d3e0d516ee33e4875cb4b1bb7f63a1928a",
+  "seconds": 5.929,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 13894,
+        "output_tokens": 1340,
+        "total_tokens": 15234,
+        "input_token_details": {
+          "cache_read": 10112,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "case_id": "case-c3966d6c34ae67a8",
+    "rule_id": "GDPR01",
+    "status": "SUPPORTED",
+    "short_explanation": "The application form offers only email, amount, term, income band and an optional route checkbox; submit() enforces a strict allowlist rejecting any other field (e.g. hobby) before persistence; the cases schema/INSERT store only necessary attributes; offer() and portable() forward only necessary fields.",
+    "detailed_explanation": "Code facts: The dashboard form (views.py:0031-0032) renders exactly the contact email input, requested amount input, term select (6/12/24/36), income-band select (low/medium/high) and an optional \"auto\" checkbox; no hobby or other free-text attribute is offered. POST /apply (app.py:0083-0084) passes the parsed data dict straight to store.submit, and the body is parsed as urlencoded with size<=16000, max_num_fields=18 and duplicate rejection (app.py:0050-0055). submit() (store.py:0065-0067) requires set(data) <= {\"email\",\"amount\",\"term\",\"income\",\"auto\"} and raises \"Unexpected application field.\" otherwise, so a hobby key is rejected before any write. Accepted values are validated (store.py:0069-0074) and the INSERT (store.py:0077-0078) writes only owner, officer, email, amount, term, income, route, stage into the cases table whose columns (store.py:0036-0038) contain no purposeless attribute. Onward, offer() returns only case id, email, amount, term (store.py:0111-0112) and portable() only email, amount, income (store.py:0114-0116).\n\nRequirement: Art. 5(1)(c) as scoped here requires that only necessary applicant inputs be collected through the form and accepted payload, including what is persisted or sent onward. The scenario supplies the trigger: email for delivery, amount and term for the requested offer, income band for assessment, and states that a hobby has no business purpose in this fixture. No exception is invoked; the NOTICE (store.py:0009) likewise describes only email, amount, term and income band.\n\nJustification: Each in-scope stage is bounded to the necessary set: the form offers no purposeless input, the server-side allowlist rejects any unexpected field such as hobby before persistence, the schema and INSERT persist only necessary attributes, and the two onward paths (offer, portable) forward only necessary fields. No supported in-scope counterexample exists in the supplied source, and no decisive unresolved dependency remains, so the predicate is satisfied. The optional \"auto\" checkbox is a route/consent choice rather than an applicant data attribute, and the officer-side verify band import (store.py:0157-0160) concerns a partner confirmation rather than applicant form input; both are outside this named predicate. This is a static reading of the supplied artifacts; no code was executed.",
+    "evidence": [
+      {
+        "artifact": "views.py",
+        "start_line": 31,
+        "end_line": 32,
+        "role": "control",
+        "explanation": "Application form renders only email, amount, term, income band and the optional 'auto' route checkbox; no purposeless input such as a hobby is offered."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 83,
+        "end_line": 84,
+        "role": "propagation",
+        "explanation": "POST /apply passes the parsed data dict directly to store.submit, so submit's allowlist governs what is accepted."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 65,
+        "end_line": 67,
+        "role": "control",
+        "explanation": "submit() enforces set(data) <= {email, amount, term, income, auto} and rejects any other field with 'Unexpected application field.' — the decisive minimization control."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 73,
+        "end_line": 78,
+        "role": "operation",
+        "explanation": "Income band and route validated, then INSERT persists only owner, officer, email, amount, term, income, route, stage; no extra applicant attribute is stored."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 36,
+        "end_line": 38,
+        "role": "control",
+        "explanation": "cases schema columns (email, amount, term, income, confirmed, route, stage) contain no field lacking a business purpose in this fixture."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 111,
+        "end_line": 112,
+        "role": "propagation",
+        "explanation": "offer() sends onward only case id, email, amount and term — the necessary delivery/offer fields."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 114,
+        "end_line": 116,
+        "role": "propagation",
+        "explanation": "portable() exports only email, amount and income, bounding onward disclosure of applicant fields."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 50,
+        "end_line": 55,
+        "role": "control",
+        "explanation": "POST body constrained to urlencoded form, size <=16000, max_num_fields=18, duplicates rejected before flattening into data."
+      }
+    ],
+    "missing_information": [
+      "No runtime execution or observed behavior; assessment is static reading of the supplied artifacts only.",
+      "The optional 'auto' consent checkbox is treated as a route/consent choice, not an applicant data attribute; its necessity is not evaluated here.",
+      "Officer-side 'verify' partner band import (store.py:0157-0160) and preference/campaign flows are outside the named applicant-field minimization predicate and not assessed.",
+      "No upstream or hidden implementation is inferred; only the supplied artifacts establish the controls."
+    ]
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "a6de4d558fda07dfe8efe8502ad91882e8f4fbfe7c7f9be0a87cdbe62749c0e2",
+  "seconds": 4.76,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9884,
+        "output_tokens": 784,
+        "total_tokens": 10668,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "Optional \"insights\" processing is gated on a purpose-specific, affirmative, versioned consent record for that purpose; a \"promotions\" choice must not enable insights; core application use must not depend on insights consent.",
+    "applicability_facts": [
+      "Scenario: adult user of core application; optional repayment insights initially off; marketing permission does not authorize private insights.",
+      "store.py:0088-0090 enabled() reads the latest choices row for the exact (owner, purpose) pair only — no cross-purpose fallback.",
+      "store.py:0092-0095 preference() accepts only purposes insights/promotions/objection and values on/off, and stores purpose, value, version (VERSION='2026-11-v1', store.py:0011) and timestamp.",
+      "store.py:0137-0139 report job runs only if enabled(owner,'insights'); store.py:0167-0168 report action requires enabled(who,'insights') else 409.",
+      "store.py:0100-0103 eligible_campaign() checks only 'promotions' and 'objection', never 'insights'.",
+      "views.py:0033-0036 renders separate per-purpose on/off controls; default state is off (no choices row => enabled() False).",
+      "views.py:0031-0032 application form has no insights consent field; store.py:0065-0083 submit() does not require any consent."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "No exception relied on: insights is optional and off by default, so no consent is needed for core application use.",
+      "Withdrawal path exists (store.py:0096-0098 cancels queued report jobs on insights off), consistent with consent being freely withdrawable; not an exception to the opt-in requirement."
+    ],
+    "required_controls": [
+      "Purpose-scoped consent lookup keyed on (owner, purpose) with no fallback to other purposes (store.py:0088-0090).",
+      "Insights processing gate: report job and report action both require enabled(...,'insights') (store.py:0137, store.py:0167-0168).",
+      "Versioned, timestamped consent record per purpose (store.py:0094-0095, VERSION store.py:0011).",
+      "Separate UI controls per purpose with off-by-default state (views.py:0033-0036).",
+      "Core application submission independent of insights consent (store.py:0065-0083; views.py:0031-0032).",
+      "Promotions eligibility independent of insights (store.py:0100-0103)."
+    ],
+    "assessment_limits": [
+      "Static source reading only; no execution, no runtime or database inspection performed.",
+      "Consent 'specific affirmative choice' is inferred from the on/off form control (views.py:0036); no separate granular consent-capture flow beyond the preference endpoint is visible.",
+      "No evidence of consent-record retention/expiry or re-consent on version change beyond storing VERSION per row.",
+      "Whether the notice text (store.py:0009) satisfies information duties under Art. 13 is outside this rule's scope.",
+      "No assessment of other GDPR obligations (e.g., Art. 6(1)(b) basis for core processing) beyond the named predicate."
+    ]
+  }
+}

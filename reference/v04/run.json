@@ -1,0 +1,185 @@
+{
+  "GDPR01": {
+    "contract": "PASS",
+    "failure": null,
+    "observed": {
+      "after_extra_field": 1,
+      "eligible_application": "/case/1"
+    },
+    "test": "test_GDPR01_minimum_application_fields"
+  },
+  "GDPR02": {
+    "contract": "PASS",
+    "failure": null,
+    "observed": {
+      "decisions": [
+        "Automatic declined. Amount 9000 compared with low limit 5000."
+      ],
+      "promotions": 1
+    },
+    "test": "test_GDPR02_underwriting_and_campaign_inputs"
+  },
+  "GDPR03": {
+    "contract": "PASS",
+    "failure": null,
+    "observed": {
+      "after_opt_in": 1,
+      "before_opt_in": 0,
+      "choice_version": "2026-11-v1"
+    },
+    "test": "test_GDPR03_specific_optional_choice"
+  },
+  "GDPR04": {
+    "contract": "PASS",
+    "failure": null,
+    "observed": {
+      "control_reports": 1,
+      "withdrawn_job": "cancelled",
+      "withdrawn_reports": 0
+    },
+    "test": "test_GDPR04_withdraw_after_enqueue_and_retry"
+  },
+  "GDPR05": {
+    "contract": "PASS",
+    "failure": null,
+    "observed": {
+      "direct_notice_before_input": true,
+      "source_named": true
+    },
+    "test": "test_GDPR05_direct_and_indirect_notice"
+  },
+  "GDPR06": {
+    "contract": "PASS",
+    "failure": null,
+    "observed": {
+      "confirmed_income": "low",
+      "copy_sections": [
+        "application",
+        "jobs",
+        "preferences",
+        "processing_information",
+        "timeline"
+      ],
+      "event_kinds": [
+        "application",
+        "partner notice",
+        "decision"
+      ]
+    },
+    "test": "test_GDPR06_access_inventory_and_owner"
+  },
+  "GDPR07": {
+    "contract": "FAIL",
+    "failure": "",
+    "observed": {
+      "next_offer": "person@example.test",
+      "original": "person@example.test",
+      "receipt": [
+        "Contact email updated."
+      ],
+      "requested": "new@example.test",
+      "stored": "person@example.test"
+    },
+    "test": "test_GDPR07_correct_and_regenerate_offer"
+  },
+  "GDPR08": {
+    "contract": "PASS",
+    "failure": null,
+    "observed": {
+      "active_visible": true,
+      "rows_after_restart": {
+        "cases": 0,
+        "events": 0,
+        "jobs": 0,
+        "summaries": 0
+      }
+    },
+    "test": "test_GDPR08_erase_main_copies_jobs_and_replay"
+  },
+  "GDPR09": {
+    "contract": "FAIL",
+    "failure": "AssertionError: ['Automatic declined. Amount 9000 compared with low limit 5000.'] is not false",
+    "observed": {
+      "decision_events": [
+        "Automatic declined. Amount 9000 compared with low limit 5000."
+      ],
+      "disputed_band": "low",
+      "effective_stage": "declined",
+      "restriction": 1
+    },
+    "test": "test_GDPR09_dispute_pause_notify_then_resume"
+  },
+  "GDPR10": {
+    "contract": "FAIL",
+    "failure": "",
+    "observed": {
+      "download": {
+        "amount": 9000,
+        "email": "person@example.test",
+        "income": "medium"
+      },
+      "provided_term": 12,
+      "received": {
+        "amount": 9000,
+        "email": "person@example.test",
+        "income": "medium"
+      }
+    },
+    "test": "test_GDPR10_portable_contract_and_receiver"
+  },
+  "GDPR11": {
+    "contract": "PASS",
+    "failure": null,
+    "observed": {
+      "objector": {
+        "decisions": 1,
+        "promotions": 0
+      },
+      "subscriber": {
+        "decisions": 1,
+        "promotions": 1
+      }
+    },
+    "test": "test_GDPR11_object_to_marketing_keep_service"
+  },
+  "GDPR12": {
+    "contract": "PASS",
+    "failure": null,
+    "observed": {
+      "responses": {
+        "assigned": [
+          200,
+          200
+        ],
+        "other": [
+          404,
+          404
+        ],
+        "owner": [
+          200,
+          200
+        ],
+        "unassigned": [
+          404,
+          404
+        ]
+      },
+      "routes": [
+        "case",
+        "offer"
+      ]
+    },
+    "test": "test_GDPR12_case_and_document_isolation"
+  },
+  "GDPR13": {
+    "contract": "PASS",
+    "failure": null,
+    "observed": {
+      "download_status": 200,
+      "offer_amount": 9000,
+      "review_log": "morgan reviewed: offered. Documents reviewed.",
+      "stage": "offered"
+    },
+    "test": "test_GDPR13_real_decision_appeal_and_manual_alternative"
+  }
+}

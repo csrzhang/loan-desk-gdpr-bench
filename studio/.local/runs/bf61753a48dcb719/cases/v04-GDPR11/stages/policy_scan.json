@@ -1,0 +1,64 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "a8e917f047d2a9842f6a3bc96870c3d543a5c9b5dba70caf136c6f8259f3d5d7",
+  "seconds": 11.322,
+  "invocations": 2,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9862,
+        "output_tokens": 766,
+        "total_tokens": 10628,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    },
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9862,
+        "output_tokens": 831,
+        "total_tokens": 10693,
+        "input_token_details": {
+          "cache_read": 9728,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "An objection to direct marketing (purpose \"objection\" set to on) must block marketing selection and future marketing processing for that data subject, including promotions already queued at the time of objection, while leaving service messages and other subscribers' marketing eligibility unaffected.",
+    "applicability_facts": [
+      "Scenario: a borrower with active marketing permission (promotions enabled) objects after a campaign has been queued, so a queued 'promotion' job exists for that owner at objection time.",
+      "Scenario: another subscribed borrower has no objection, so that owner's promotions remain eligible.",
+      "Scenario: service decisions remain necessary, so non-marketing processing (e.g. 'score' jobs, case servicing) must not be blocked by the objection.",
+      "store.py:0092-0098 preference() accepts purpose 'objection' with value 'on' and, for ('objection','on'), cancels queued 'promotion' jobs for that owner's cases.",
+      "store.py:0100-0103 eligible_campaign() excludes owners with objection enabled and requires promotions enabled.",
+      "store.py:0140-0142 drain() only completes a queued 'promotion' job when eligible_campaign() is true, so an objected owner's pending promotion is cancelled rather than sent.",
+      "store.py:0127-0128 drain() skips non-'score' jobs for restricted cases only; objection does not affect 'score' jobs, preserving service decisions."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "Service/necessary messages are outside the objection: 'score' jobs and case servicing are not cancelled by the objection (store.py:0096-0098 cancels only 'promotion'/'report' kinds; store.py:0127-0128).",
+      "Unaffected subscribers remain eligible: eligible_campaign() is evaluated per owner, so a non-objecting borrower's promotions still queue and drain (store.py:0100-0103, 0105-0109).",
+      "Insights ('report') cancellation on objection is not required by this rule; the code cancels 'report' only for insights-off, not for objection (store.py:0096-0098)."
+    ],
+    "required_controls": [
+      "Persist the objection as a per-owner preference record (store.py:0092-0095).",
+      "On objection, cancel already-queued 'promotion' jobs for that owner's cases (store.py:0096-0098).",
+      "Gate marketing audience selection on absence of objection and presence of promotions consent (store.py:0100-0103).",
+      "Re-check eligibility at processing time so queued promotions are not delivered after objection (store.py:0140-0142).",
+      "Keep service-decision jobs ('score') and other owners' marketing unaffected (store.py:0127-0128, 0105-0109)."
+    ],
+    "assessment_limits": [
+      "Assessment is static reading of the supplied artifacts only; no code was executed and no runtime behavior was observed.",
+      "Only the named rule (GDPR 21(2)-(3) marketing objection) is assessed; other GDPR obligations in the notice are out of scope.",
+      "The scenario's 'campaign queued' state is taken as stipulated; the ordering of objection versus drain is not exercised here.",
+      "No claim is made about upstream or hidden implementations; only the supplied app.py, store.py, views.py, style.css are considered.",
+      "Whether 'report' (insights) jobs should also be blocked by an objection is not decided, as the rule addresses direct marketing only."
+    ]
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "2a4dfd48937ca5a36bb631fb3db14785ece23ae0a535620f5ecbcf7292ff459e",
+  "seconds": 4.88,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9907,
+        "output_tokens": 753,
+        "total_tokens": 10660,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "Scoped processing information (Art. 13 notice) is made available at the point of direct collection, and a source-specific Art. 14 notice for the indirect Income Registry import is delivered to the data subject by its applicable deadline (immediate delivery to the case inbox being feasible in this fixture).",
+    "applicability_facts": [
+      "Synthetic adult, EU-established private controller; each scenario starts in its own database (stated assumption).",
+      "Scenario: direct application plus a synthetic Income Registry import; no prior outward disclosure and no Art. 14(5) exception.",
+      "Direct collection occurs via the /apply POST route (app.py 0083-0084) which calls store.submit (store.py 0065-0083).",
+      "Indirect import occurs via the officer 'verify' action (store.py 0157-0160), which records the Income Registry band and appends NOTICE to a 'partner notice' event.",
+      "The applicant may open the case immediately or leave it unopened; the case inbox/history is rendered in views.detail (views.py 0076, 0079)."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "Art. 14(5) exceptions are stipulated as not applicable (no prior outward disclosure, no other exception).",
+      "No international transfer is modeled (NOTICE, store.py 0009), so no Art. 14(1)(f)/Chapter V notice element arises."
+    ],
+    "required_controls": [
+      "Direct collection: the scoped processing information must be presented at the point of collection. The application form (views.py 0031-0032) includes notice() (views.py 0024-0025) rendering NOTICE (store.py 0009) as a collapsed <details> element on the dashboard where /apply is submitted.",
+      "Indirect import: a source-specific notice identifying the Income Registry as source must be delivered to the data subject. store.py 0160 writes a 'partner notice' event containing the source and NOTICE; this is only visible in the case inbox/history (views.py 0076, 0079) when the applicant opens the case.",
+      "Delivery means: the fixture states immediate delivery to the case inbox is feasible; the event record is the only delivery channel present.",
+      "Notice content must cover the scoped processing information elements (controller identity/contact, purposes, legal basis, recipients, retention, rights, complaint route, required-field consequence) as contained in NOTICE (store.py 0009)."
+    ],
+    "assessment_limits": [
+      "Assessment is limited to the supplied source; no execution, browsing or retrieval was performed.",
+      "Whether the collapsed <details> presentation at collection satisfies 'available at collection' is a presentation judgment not resolvable from source alone.",
+      "Whether an event row visible only on case open constitutes delivery 'by the applicable deadline' when the applicant leaves the case unopened cannot be determined from source; no push/email delivery mechanism exists in the supplied code.",
+      "No legal deadline is invented; the fixture's 'immediate delivery feasible' is treated as the applicable timing input.",
+      "Compliance is not decided from the rule description alone; only the observable controls above are identified."
+    ]
+  }
+}

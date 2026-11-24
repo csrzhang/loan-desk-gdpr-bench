@@ -1,0 +1,15 @@
+{
+  "GDPR01":"Only collect the necessary applicant inputs through the form and accepted payload, including what is persisted or sent onward.",
+  "GDPR02":"Use partner-confirmed income for underwriting only. Marketing selection and delivery may use the permitted subscription and case eligibility fields.",
+  "GDPR03":"Core application remains available without consent to optional private insights. Insights processing requires a specific affirmative choice with a versioned record. A promotions choice cannot authorize insights.",
+  "GDPR04":"Allow withdrawal as easily as opt-in, inform the user beforehand, and stop future report generation, including already queued work and retries. An unaffected subscriber can still receive the report.",
+  "GDPR05":"Make scoped processing information available at direct collection and provide a source-specific notice for the indirect import by its applicable deadline. In this fixture immediate delivery to the case inbox is a feasible means.",
+  "GDPR06":"Provide the verified borrower a copy for the requested case with supplied and derived data, processing information, partner source, decision, related events and preferences. Isolate other applicants.",
+  "GDPR07":"Persist the requested correction to this case and use the corrected address in subsequent offers, including after reopening storage.",
+  "GDPR08":"Erase the eligible abandoned application and business-retrievable copies (summary, events and pending jobs). An unrelated active case remains available and later job replay must not resurrect the target.",
+  "GDPR09":"Keep the disputed data for verification but stop ordinary scoring, including pending jobs and retries. Notify the applicant before lifting the restriction, then use the verified data.",
+  "GDPR10":"For the accepted contract, return the four provided fields as machine-readable data to the borrower and transfer them to the selected local receiver on request. Exclude inferred decisions.",
+  "GDPR11":"An objection blocks marketing selection and future marketing processing for that subject, including pending promotions. Service messages and unaffected subscribers remain eligible.",
+  "GDPR12":"Limit the ordinary case and offer routes to the authenticated owner and assigned officer. Another borrower and an unassigned officer cannot access either resource.",
+  "GDPR13":"For the stipulated qualifying automatic decline allow the applicant to give a statement, contest it and obtain effective review. An authorized human reversal must change the actual offer. Provide the manual alternative and honor pre-decision withdrawal."
+}

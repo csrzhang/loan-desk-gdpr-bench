@@ -1,0 +1,77 @@
+{
+  "case_id": "v04-GDPR05",
+  "verdict": "SUPPORTED",
+  "explanation": "Code facts: The scoped processing information is the NOTICE constant (store.py 0009). At direct collection, views.dashboard builds the /apply form fields beginning with notice() (views.py 0031), and notice() renders NOTICE inside a details block (views.py 0024-0025); the form posts to /apply, routed to store.submit (app.py 0083-0084), which inserts the case and records an 'application' event citing the notice version (store.py 0065-0083). For the indirect import, POST /case/<id>/verify routes to store.action op 'verify' (app.py 0097-0098); the staff-only verify branch (store.py 0157-0160) writes an event of kind 'partner notice' with body \"Income Registry supplied income band ... for underwriting. \"+NOTICE via event() (store.py 0051-0053) into the events table. That event is rendered in the case history (views.py 0076, 0079), and store.access returns processing_information=NOTICE (store.py 0120), served as JSON by the access route (app.py 0100-0109).\n\nRequirement: The rule requires scoped processing information to be made available at direct collection and a source-specific notice for the indirect Income Registry import by its applicable deadline, with immediate delivery to the case inbox a feasible means in this fixture. The scenario stipulates a direct application plus a synthetic Income Registry import, no prior outward disclosure and no Art. 14(5) exception, and that the applicant may open the case immediately or leave it unopened.\n\nJustification: Both scoped paths are present in source. The direct-collection form always includes notice() before submission, so the information is made available at collection. The verify action unconditionally records the source-specific partner notice (naming the Income Registry and underwriting purpose, plus NOTICE) to the case inbox at the moment of import, so delivery does not depend on the applicant opening the case; the \"may leave it unopened\" variable therefore does not defeat delivery. No supported in-scope counterexample was found, so the verdict is SUPPORTED. This is a static source reading; no execution was performed, and no claim is made about upstream or hidden implementation.",
+  "evidence": [
+    {
+      "path": "store.py",
+      "start_line": 9,
+      "end_line": 9,
+      "quote": "NOTICE = \"\"\"Loan Desk Research (controller), privacy@loandesk.example, processes contact email, amount, term and income band to handle your requested application and contract. Your assigned officer may consult a synthetic Income Registry confirmation for underwriting only. The optional automatic route uses your separate explicit consent: amounts above the income-band limit are declined, which closes this application. The low, medium and high limits are EUR 5,000, 15,000 and 30,000. Manual review has the same terms and access. You can withdraw before decision, give your view, contest a decline and obtain human review. Repayment insights and promotions each require a separate optional consent. Switch either off at any time as easily as switching it on. You may object to all direct marketing. Withdrawal applies to future processing. Only authorized case staff and you can view your file. On request a local receiving controller can receive your portable fields. No international transfer is modeled. Active cases are retained for handling and servicing; an abandoned case with no remaining retention ground can be erased. Account choices remain for preference handling. You can access, correct, restrict, erase or port eligible data here, contact the controller, or complain to your EU supervisory authority. Required application fields enable assessment and delivery of your offer; without them we cannot process the application.\"\"\"",
+      "supports": "NOTICE constant holds the scoped processing information (controller, purposes, consent basis, limits, rights, retention)."
+    },
+    {
+      "path": "views.py",
+      "start_line": 24,
+      "end_line": 25,
+      "quote": "def notice():\n    return '<details><summary>How we use your information</summary><p>'+h(NOTICE)+'</p></details>'",
+      "supports": "notice() renders NOTICE as a details block."
+    },
+    {
+      "path": "views.py",
+      "start_line": 31,
+      "end_line": 32,
+      "quote": "        fields=notice()+inputbox(\"Contact email\",\"email\",\"email\")+inputbox(\"Requested amount (EUR)\",\"amount\",\"number\",'min=\"100\" max=\"100000\"')+select(\"Term in months\",\"term\",[6,12,24,36])+select(\"Income band\",\"income\",[\"low\",\"medium\",\"high\"])\n        fields+='<label class=\"check\"><input type=\"checkbox\" name=\"auto\" value=\"yes\">I explicitly choose an automatic credit decision. Amounts above the income limit may be declined. I can withdraw before the decision and contest a refusal. Leave unchecked for human review on the same terms.</label>'",
+      "supports": "The /apply form fields begin with notice(), placing the notice at direct collection before submission."
+    },
+    {
+      "path": "app.py",
+      "start_line": 83,
+      "end_line": 84,
+      "quote": "                    elif path==\"/apply\" and method==\"POST\":\n                        location=\"/case/\"+str(store.submit(db,who,data))",
+      "supports": "POST /apply routes to store.submit."
+    },
+    {
+      "path": "store.py",
+      "start_line": 65,
+      "end_line": 83,
+      "quote": "def submit(db, who, data):\n    require(who in CUSTOMERS,\"Borrower account required.\",403)\n    require(set(data) <= {\"email\",\"amount\",\"term\",\"income\",\"auto\"},\"Unexpected application field.\")\n    try:\n        amount, term = int(data.get(\"amount\",\"\")), int(data.get(\"term\",\"\"))\n    except ValueError:\n        raise Problem(\"Enter a valid amount and term.\")\n    require(100 <= amount <= 100000 and term in (6,12,24,36),\"Amount or term outside available range.\")\n    income = data.get(\"income\",\"\")\n    require(income in LIMITS and data.get(\"auto\",\"\") in (\"\",\"yes\"),\"Invalid application choice.\")\n    route = \"automatic\" if data.get(\"auto\")==\"yes\" else \"manual\"\n    officer = dict(zip(CUSTOMERS,OFFICERS))[who]\n    cid = db.execute(\"INSERT INTO cases(owner,officer,email,amount,term,income,route,stage) VALUES(?,?,?,?,?,?,?,?)\",\n                     (who,officer,email(data.get(\"email\",\"\")),amount,term,income,route,\"pending\")).lastrowid\n    db.execute(\"INSERT INTO summaries VALUES(?,?)\",(cid,f\"EUR {amount:,} · {term} months\"))\n    event(db,cid,\"application\",f\"{route} route selected under notice {VERSION}\")\n    if route==\"automatic\":\n        queue(db,cid,\"score\")\n    return cid",
+      "supports": "submit() records the application and an 'application' event citing the notice version."
+    },
+    {
+      "path": "app.py",
+      "start_line": 97,
+      "end_line": 98,
+      "quote": "                        if method==\"POST\" and op:\n                            store.action(db,who,cid,op,data)",
+      "supports": "POST /case/<id>/verify routes to store.action op 'verify'."
+    },
+    {
+      "path": "store.py",
+      "start_line": 157,
+      "end_line": 160,
+      "quote": "    if op==\"verify\":\n        require(stage==\"pending\" and not c[\"restricted\"] and data.get(\"band\") in LIMITS,\"Pending unrestricted case required.\")\n        db.execute(\"UPDATE cases SET confirmed=? WHERE id=?\",(data[\"band\"],cid))\n        event(db,cid,\"partner notice\",f\"Income Registry supplied income band {data['band']} today for underwriting. \"+NOTICE)",
+      "supports": "verify writes a 'partner notice' event naming Income Registry and underwriting purpose plus NOTICE into the case inbox."
+    },
+    {
+      "path": "store.py",
+      "start_line": 51,
+      "end_line": 53,
+      "quote": "def event(db, cid, kind, body):\n    db.execute(\"INSERT INTO events(cid,kind,body,at) VALUES(?,?,?,?)\",\n               (cid,kind,body,datetime.now(timezone.utc).isoformat()))",
+      "supports": "event() inserts the notice into the events table (case inbox store)."
+    },
+    {
+      "path": "views.py",
+      "start_line": 76,
+      "end_line": 79,
+      "quote": "    log=''.join(f'<li><small>{h(e[\"at\"][:19])} UTC · {h(e[\"kind\"])}</small><p>{h(e[\"body\"])}</p></li>' for e in reversed(events))\n    body+='<div class=\"grid\"><section><h2>Case actions</h2>'+(business or '<p>No decision action pending.</p>')+'</section>'\n    if controls:body+='<section><h2>Data rights</h2>'+controls+'</section>'\n    body+='</div><section><h2>Processing queue</h2>'+worker+'</section><section><h2>Case inbox &amp; history</h2><ol>'+log+'</ol></section>'",
+      "supports": "Case history renders events, making the partner notice retrievable in the case inbox."
+    },
+    {
+      "path": "store.py",
+      "start_line": 118,
+      "end_line": 122,
+      "quote": "def access(db,c):\n    cid=c[\"id\"]\n    return {\"application\":c,\"processing_information\":NOTICE,\"timeline\":rows(db,\"SELECT kind,body,at FROM events WHERE cid=? ORDER BY id\",(cid,)),\n            \"jobs\":rows(db,\"SELECT kind,state FROM jobs WHERE cid=? ORDER BY id\",(cid,)),\n            \"preferences\":rows(db,\"SELECT purpose,value,version,at FROM choices WHERE owner=? ORDER BY id\",(c[\"owner\"],))}",
+      "supports": "access() returns processing_information=NOTICE and the timeline events."
+    }
+  ]
+}

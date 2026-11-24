@@ -1,0 +1,80 @@
+{
+  "stage": "locus_finder",
+  "input_hash": "33fcfc747d2d2216ecd0a440790087af12557a277c3bb39de0abd02f02f03a08",
+  "seconds": 4.265,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 10740,
+        "output_tokens": 797,
+        "total_tokens": 11537,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "loci": [
+      {
+        "artifact": "app.py",
+        "start_line": 100,
+        "end_line": 109,
+        "rationale": "Access route: owner-only check (who==c['owner'], 403 otherwise), store.access call, JSON attachment delivery with no-store header."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 44,
+        "end_line": 47,
+        "rationale": "Session identity resolution from cookie; establishes 'who' used for authorization and owner scoping."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 55,
+        "end_line": 58,
+        "rationale": "get_case scopes the single case by id AND (owner=? OR officer=?), preventing cross-applicant case retrieval."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 118,
+        "end_line": 122,
+        "rationale": "access() assembles the copy: case row (supplied/derived fields), NOTICE processing information, events and jobs by cid, preferences by case owner only."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 9,
+        "end_line": 9,
+        "rationale": "NOTICE text supplied as processing_information in the access copy."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 135,
+        "end_line": 135,
+        "rationale": "Automatic decision event (derived decision) recorded per cid and surfaced in the timeline."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 160,
+        "end_line": 160,
+        "rationale": "Partner source event (Income Registry band) recorded per cid and surfaced in the timeline."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 196,
+        "end_line": 196,
+        "rationale": "Human review decision event recorded per cid, included in the access timeline."
+      }
+    ],
+    "path_summary": "GET /case/<cid>/access is handled in app.py: the session user is resolved from the cookie (app.py:0044-0047), the case is fetched via store.get_case which filters by id AND (owner=? OR officer=?) (store.py:0055-0058), the access branch requires who==c['owner'] (app.py:0105) and calls store.access(db,c) (app.py:0106), returning JSON as an attachment with no-store (app.py:0030, 0107-0109). store.access builds the copy from the single case row, events WHERE cid=?, jobs WHERE cid=?, and choices WHERE owner=c['owner'] (store.py:0118-0122), embedding NOTICE (store.py:0009) and the timeline that carries partner-notice and decision events (store.py:0135, 0160, 0196). Isolation of the other applicant is structural: per-cid and per-owner queries, no cross-case join.",
+    "missing_boundaries": [
+      "No runtime execution or observation was performed; assessment is static reading of the supplied snapshot only.",
+      "The scenario's 'verified borrower' status is not modeled as a separate verification flag; it is treated as the authenticated owner session.",
+      "Completeness of the copy for every derived field (e.g., summaries.title, receiver payloads, confirmed band provenance) is not asserted beyond the fields enumerated in store.access.",
+      "No third-party-rights redaction mechanism exists; isolation relies on per-cid/per-owner queries rather than redaction.",
+      "No conclusion is drawn about other GDPR articles or about upstream/other versions of the code."
+    ]
+  }
+}

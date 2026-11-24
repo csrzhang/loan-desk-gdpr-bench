@@ -1,0 +1,56 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "f4d1a7d3c78b3e6654b6121344dd1a750d2fd1d09d1f3be1a993167cfe50a40e",
+  "seconds": 6.968,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9832,
+        "output_tokens": 833,
+        "total_tokens": 10665,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "An objection to direct marketing (GDPR Art. 21(2)) must block marketing selection and all future marketing processing for that data subject, including promotions already queued at the time of objection, while leaving service messages and unaffected subscribers eligible.",
+    "applicability_facts": [
+      "Scenario: a borrower with active marketing permission objects after a campaign is queued (objection arrives post-queueing).",
+      "Scenario: a second subscribed borrower has no objection and must remain eligible.",
+      "Scenario: service decisions remain necessary and must not be blocked by the objection.",
+      "store.py:0092-0098 preference() accepts purpose 'objection' with value 'on' and, for ('objection','on') or ('promotions','off'), cancels queued jobs of kind 'promotion' for cases owned by that subject.",
+      "store.py:0100-0103 eligible_campaign() gates audience on restricted=0, stage!='abandoned', promotions enabled, and objection not enabled.",
+      "store.py:0105-0109 campaign() queues 'promotion' jobs only for cases passing eligible_campaign().",
+      "store.py:0140-0142 drain() emits a promotion event only when eligible_campaign() still holds at processing time.",
+      "store.py:0165-0171 action() 'promotion' requires eligible_campaign() before queueing.",
+      "store.py:0124-0143 drain() handles 'score' and 'report' jobs independently of objection state (service processing unaffected)."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "Objection scope is limited to direct marketing; service/decision processing (score, report jobs) is not blocked (store.py:0131-0139).",
+      "Eligibility is per-subject: other subscribers without an objection remain in the audience (store.py:0100-0103, 0107-0109).",
+      "Cases with restricted=1 or stage='abandoned' are excluded from campaign audience independently of objection (store.py:0102)."
+    ],
+    "required_controls": [
+      "Objection recorded as a per-subject preference (store.py:0092-0095).",
+      "On objection, queued 'promotion' jobs for that subject's cases are cancelled (store.py:0096-0098).",
+      "Marketing selection excludes subjects with an active objection (store.py:0100-0103).",
+      "Campaign queueing re-checks eligibility per case (store.py:0105-0109).",
+      "Promotion dispatch re-checks eligibility at drain time, so pending promotions are suppressed (store.py:0140-0142).",
+      "Manual promotion queueing is gated by eligibility (store.py:0165-0171).",
+      "Service jobs (score/report) remain processed regardless of objection (store.py:0131-0139)."
+    ],
+    "assessment_limits": [
+      "Assessment is static reading of supplied source; no execution, database state, or runtime behavior was observed.",
+      "Only the named obligation (Art. 21(2)-(3) marketing objection) is assessed; other GDPR duties are out of scope.",
+      "Whether the objection UI is as easy as consent withdrawal, and notice wording adequacy, are not verified beyond presence of the 'objection' purpose in views.py:0034-0036 and NOTICE (store.py:0009).",
+      "No claim is made about upstream or hidden implementation; conclusions rest solely on the supplied artifacts.",
+      "Compliance is not decided from the rule description alone; it is inferred from the cited source coordinates under the stipulated scenario facts."
+    ]
+  }
+}

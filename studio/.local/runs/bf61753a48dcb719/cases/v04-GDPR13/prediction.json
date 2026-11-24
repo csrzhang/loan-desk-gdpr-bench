@@ -1,0 +1,91 @@
+{
+  "case_id": "v04-GDPR13",
+  "verdict": "SUPPORTED",
+  "explanation": "Code facts: In store.py:0074-0075 the route is 'automatic' only when data['auto']=='yes', otherwise 'manual'; store.py:0077-0082 inserts the same case fields for both routes and queues a 'score' job only for automatic. views.py:0032 renders the applicant checkbox that explicitly chooses the automatic decision, states withdrawal-before-decision and contest rights, and says leaving it unchecked gives human review on the same terms. store.py:0131-0135 makes the score job set stage to 'offered' when amount<=LIMITS[band] and 'declined' otherwise, logging a 'decision' event. store.py:0161-0164 ('withdraw-auto') requires stage=='pending', sets route='manual' and logs a 'route' event; views.py:0053 shows that control only at pending+automatic. store.py:0187-0190 ('appeal') requires stage=='declined' and a non-empty statement, records the statement as an event and sets stage='contested'; views.py:0054 renders the appeal form only at stage 'declined'. store.py:0153-0154 gates 'review' to the assigned officer; store.py:0191-0196 requires not restricted and (stage=='contested' or pending manual), requires result in ('offered','declined') plus a non-empty reason, sets stage to the result and logs a 'decision' event; views.py:0061-0062 shows the officer review form for contested or pending-manual cases. app.py:0100-0103 serves /case/{id}/offer only when stage in ('accepted','offered') and not restricted, calling store.offer; store.py:0111-0112 builds the payload from the current case amount, term and email.\n\nRequirement: For a stipulated qualifying significant automatic credit refusal under Art. 22(1) with valid separate explicit consent under Art. 22(2)(c), the controller must let the applicant give a statement, contest the refusal and obtain effective human review, with an authorized human reversal changing the actual offer; a manual alternative must be provided and pre-decision withdrawal honored. The scenario stipulates the refusal, the consent, the contest with statement, the officer approval, manual selection and pre-decision withdrawal; these are inputs, not code findings.\n\nJustification: Each in-scope control is present and reachable in the supplied source: the manual alternative is the default route (store.py:0074-0075; views.py:0032); pre-decision withdrawal is honored while pending by converting to manual (store.py:0161-0164; views.py:0053); the contest captures the applicant's statement and moves the case to 'contested' (store.py:0187-0190; views.py:0054); the human determination is restricted to the assigned officer and requires a recorded outcome and reason (store.py:0153-0154, 0191-0196; views.py:0061-0062); and the officer's 'offered' result is what the offer endpoint serves, so the reversal changes the actual offer (app.py:0100-0103; store.py:0111-0112). The noted limits — post-decision route change not modeled (store.py:0162), review blocked while restricted (store.py:0192), no contest form for an automatic 'offered' outcome (views.py:0054) — fall outside the stipulated scenario (a refusal, no restriction) and are not in-scope counterexamples. The substantive effectiveness/independence of the human review is not fully determinable from source; only the recorded officer action, outcome and reason are observable, which is a limit on evidence rather than a contradiction.",
+  "evidence": [
+    {
+      "path": "store.py",
+      "start_line": 74,
+      "end_line": 75,
+      "quote": "    require(income in LIMITS and data.get(\"auto\",\"\") in (\"\",\"yes\"),\"Invalid application choice.\")\n    route = \"automatic\" if data.get(\"auto\")==\"yes\" else \"manual\"",
+      "supports": "Route is 'automatic' only when 'auto'=='yes'; otherwise 'manual' — the manual alternative is the default."
+    },
+    {
+      "path": "views.py",
+      "start_line": 32,
+      "end_line": 32,
+      "quote": "        fields+='<label class=\"check\"><input type=\"checkbox\" name=\"auto\" value=\"yes\">I explicitly choose an automatic credit decision. Amounts above the income limit may be declined. I can withdraw before the decision and contest a refusal. Leave unchecked for human review on the same terms.</label>'",
+      "supports": "Applicant checkbox explicitly choosing the automatic decision, stating withdrawal-before-decision and contest rights, and that leaving it unchecked gives human review on the same terms."
+    },
+    {
+      "path": "store.py",
+      "start_line": 131,
+      "end_line": 135,
+      "quote": "        if kind==\"score\" and c[\"route\"]==\"automatic\" and c[\"stage\"]==\"pending\":\n            band=c[\"confirmed\"] or c[\"income\"]\n            stage=\"offered\" if c[\"amount\"]<=LIMITS[band] else \"declined\"\n            db.execute(\"UPDATE cases SET stage=? WHERE id=?\",(stage,cid))\n            event(db,cid,\"decision\",f\"Automatic {stage}. Amount {c['amount']} compared with {band} limit {LIMITS[band]}.\")",
+      "supports": "Automatic scoring sets stage to 'declined' when amount exceeds the band limit and logs the decision — the qualifying automatic refusal."
+    },
+    {
+      "path": "store.py",
+      "start_line": 161,
+      "end_line": 164,
+      "quote": "    elif op==\"withdraw-auto\":\n        require(stage==\"pending\",\"Decision already made.\")\n        db.execute(\"UPDATE cases SET route='manual' WHERE id=?\",(cid,))\n        event(db,cid,\"route\",\"Manual review requested.\")",
+      "supports": "Pre-decision withdrawal: while stage is 'pending', route is switched to 'manual' and logged."
+    },
+    {
+      "path": "views.py",
+      "start_line": 53,
+      "end_line": 53,
+      "quote": "        if stage==\"pending\" and c[\"route\"]==\"automatic\": business+=act(\"withdraw-auto\",\"Switch to manual review\")",
+      "supports": "Withdraw control shown only at pending automatic stage."
+    },
+    {
+      "path": "store.py",
+      "start_line": 187,
+      "end_line": 190,
+      "quote": "    elif op==\"appeal\":\n        require(stage==\"declined\" and data.get(\"statement\",\"\").strip(),\"A decline and a statement are required.\")\n        event(db,cid,\"appeal\",data[\"statement\"])\n        db.execute(\"UPDATE cases SET stage='contested' WHERE id=?\",(cid,))",
+      "supports": "Appeal requires stage 'declined' and a non-empty statement, records the statement, and moves stage to 'contested'."
+    },
+    {
+      "path": "views.py",
+      "start_line": 54,
+      "end_line": 54,
+      "quote": "        if stage==\"declined\": business+=act(\"appeal\",\"Request human review\",inputbox(\"Your statement\",\"statement\"))",
+      "supports": "Appeal form rendered at stage 'declined'."
+    },
+    {
+      "path": "store.py",
+      "start_line": 153,
+      "end_line": 154,
+      "quote": "    if op in (\"verify\",\"review\",\"notify-release\",\"release\"):\n        require(staff,\"Assigned officer required.\",403)",
+      "supports": "review is gated to the assigned officer (staff)."
+    },
+    {
+      "path": "store.py",
+      "start_line": 191,
+      "end_line": 196,
+      "quote": "    elif op==\"review\":\n        require(not c[\"restricted\"] and (stage==\"contested\" or (stage==\"pending\" and c[\"route\"]==\"manual\")),\"Case unavailable for human determination.\")\n        result=data.get(\"result\")\n        require(result in (\"offered\",\"declined\") and data.get(\"reason\",\"\").strip(),\"Choose an outcome and explain your assessment.\")\n        db.execute(\"UPDATE cases SET stage=? WHERE id=?\",(result,cid))\n        event(db,cid,\"decision\",f\"{who} reviewed: {result}. \"+data[\"reason\"])",
+      "supports": "Officer review accepts contested or pending-manual cases, requires outcome and reason, sets stage to result, logs decision."
+    },
+    {
+      "path": "views.py",
+      "start_line": 61,
+      "end_line": 62,
+      "quote": "        if stage==\"contested\" or (stage==\"pending\" and c[\"route\"]==\"manual\"):\n            business+=act(\"review\",\"Record human decision\",select(\"Decision\",\"result\",[\"offered\",\"declined\"])+inputbox(\"Assessment and reasons\",\"reason\"))",
+      "supports": "Officer review form shown for contested or pending manual cases."
+    },
+    {
+      "path": "app.py",
+      "start_line": 100,
+      "end_line": 103,
+      "quote": "                        elif method==\"GET\" and op in (\"access\",\"portable\",\"offer\"):\n                            if op==\"offer\":\n                                require(c[\"stage\"] in (\"accepted\",\"offered\") and not c[\"restricted\"],\"Offer unavailable.\",409)\n                                item=store.offer(db,c)",
+      "supports": "Offer served only when stage offered/accepted and unrestricted; calls store.offer."
+    },
+    {
+      "path": "store.py",
+      "start_line": 111,
+      "end_line": 112,
+      "quote": "def offer(db,c):\n    return {\"case\":c[\"id\"],\"to\":c[\"email\"],\"amount_eur\":c[\"amount\"],\"term_months\":c[\"term\"]}",
+      "supports": "Offer payload built from current case amount/term/email, so an officer 'offered' reversal changes the actual offer."
+    }
+  ]
+}

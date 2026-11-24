@@ -1,0 +1,99 @@
+{
+  "stage": "counterexample_review",
+  "input_hash": "0f027c58e344caac9e5c2fcbd101164f14adb54b82f952649c3de48ca64e4ecf",
+  "seconds": 6.619,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 13009,
+        "output_tokens": 1302,
+        "total_tokens": 14311,
+        "input_token_details": {
+          "cache_read": 896,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "recommended_status": "SUPPORTED",
+    "counterexamples": [
+      "No feasible in-scope counterexample found: every path that emits a promotion event (store.py:140-142) and every path that queues one (store.py:105-109, 165-171) consults eligible_campaign(), which reads the latest per-owner 'objection' choice; the objection-on branch also cancels already-queued promotion jobs (store.py:96-98).",
+      "Residual, non-decisive edge: enabled() takes the latest choices row by id (store.py:88-90), so a later 'objection'='off' row re-enables marketing. That is a withdrawal of the objection, not a bypass of an active objection, and is outside the stipulated facts.",
+      "Residual, non-decisive edge: cancellation on objection is scoped to cases owned by the objecting subject (store.py:98); a promotion job attached to a case whose owner differs from the objecting subject would not be cancelled, but the scenario's subject owns the queued campaign case, so this is not an in-scope counterexample."
+    ],
+    "unsupported_assumptions": [
+      "The draft's claim that drain() 'cancels' a queued promotion is imprecise: drain() leaves the job state as the default 'cancelled' value it sets before the branch (store.py:0130) and simply does not emit the promotion event; the effect (no delivery) is the same, so the conclusion stands.",
+      "The draft treats 'report' (insights) jobs as out of scope; that is correct for this rule, but note the objection-on branch does not cancel 'report' jobs (store.py:96-98), which is consistent with the rule's marketing-only scope.",
+      "No runtime execution was performed; the 'campaign queued before objection' ordering is stipulated, not exercised."
+    ],
+    "anchors": [
+      {
+        "artifact": "store.py",
+        "start_line": 92,
+        "end_line": 98,
+        "role": "operation",
+        "explanation": "preference() accepts purpose 'objection' with value 'on', persists a per-owner choices row, and on ('objection','on') cancels queued 'promotion' jobs for that owner's cases — the objection's effect on pending promotions."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 88,
+        "end_line": 90,
+        "role": "control",
+        "explanation": "enabled() reads the latest choices row per owner/purpose, so the persisted objection is consumed as a per-owner flag."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 100,
+        "end_line": 103,
+        "role": "control",
+        "explanation": "eligible_campaign() is the marketing selection predicate: requires promotions enabled and objection absent, evaluated per owner, so an objecting subject is excluded while other subscribers remain eligible."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 105,
+        "end_line": 109,
+        "role": "propagation",
+        "explanation": "campaign() queues 'promotion' jobs only for cases passing eligible_campaign(), gating future marketing selection on absence of objection."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 140,
+        "end_line": 143,
+        "role": "control",
+        "explanation": "drain() emits a promotion event only when eligible_campaign() holds at processing time; otherwise the job is left cancelled, so a queued promotion is not delivered after objection."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 126,
+        "end_line": 135,
+        "role": "exception",
+        "explanation": "drain() skip logic applies only to restricted cases and non-'score' jobs; the 'score' service-decision branch is independent of marketing preferences, preserving necessary service processing."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 165,
+        "end_line": 171,
+        "role": "propagation",
+        "explanation": "Manual 'promotion' action also requires eligible_campaign(), so ad-hoc promotion queueing is likewise blocked by an objection."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 85,
+        "end_line": 90,
+        "role": "trigger",
+        "explanation": "Routing: /preference POST invokes store.preference with purpose/value; /campaign POST invokes store.campaign — the entrypoints connecting objection and marketing selection."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 33,
+        "end_line": 36,
+        "role": "operation",
+        "explanation": "UI exposes the 'objection' preference toggle alongside promotions, surfacing the objection as a distinct per-owner control."
+      }
+    ],
+    "review_summary": "Confirmed SUPPORTED. The objection path is wired end to end: /preference (app.py:85-86) calls store.preference, which persists an 'objection'=on choices row (store.py:92-95) and cancels queued 'promotion' jobs for that owner's cases (store.py:96-98). Marketing selection in eligible_campaign() requires promotions enabled and objection absent (store.py:100-103), gating campaign() queueing (store.py:105-109) and the manual promotion action (store.py:165-171), and is re-checked at drain time (store.py:140-143) so pending promotions are not delivered. Service 'score' jobs are independent of marketing preferences (store.py:126-135), and eligibility/cancellation are owner-scoped, leaving non-objecting subscribers eligible. Minor imprecision in the draft (drain leaves the job 'cancelled' rather than actively cancelling) does not change the outcome. No feasible in-scope counterexample found; assessment is static reading only, no execution performed."
+  }
+}

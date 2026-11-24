@@ -1,0 +1,132 @@
+{
+  "stage": "control_verifier",
+  "input_hash": "aa83d9a5b457fe40cdb7cc8b498280fcd119d8f960d81a4e0c29aca4c0027fcb",
+  "seconds": 5.5,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 11920,
+        "output_tokens": 1161,
+        "total_tokens": 13081,
+        "input_token_details": {
+          "cache_read": 10240,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "checks": [
+      {
+        "target": "Application form rendering (views.py dashboard fields)",
+        "required_behavior": "Form offers only necessary applicant inputs: email, amount, term, income band (plus optional route consent).",
+        "observed_code_behavior": "dashboard() builds fields from notice(), inputbox email, inputbox amount, select term, select income, and an 'auto' checkbox; no hobby or other purposeless input is rendered.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "views.py",
+            "start_line": 31,
+            "end_line": 32,
+            "role": "control",
+            "explanation": "Form fields limited to email, amount, term, income and optional auto route checkbox."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Accepted POST /apply payload allowlist (store.submit)",
+        "required_behavior": "Server rejects any field outside the necessary set, e.g. a hobby field.",
+        "observed_code_behavior": "submit() requires set(data) <= {email, amount, term, income, auto} and raises 'Unexpected application field.' otherwise; app.py routes POST /apply data directly to submit.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 65,
+            "end_line": 67,
+            "role": "control",
+            "explanation": "Strict allowlist rejects unexpected fields such as hobby."
+          },
+          {
+            "artifact": "app.py",
+            "start_line": 83,
+            "end_line": 84,
+            "role": "propagation",
+            "explanation": "POST /apply passes parsed data to store.submit, so the allowlist governs acceptance."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Persistence of applicant fields (cases schema and INSERT)",
+        "required_behavior": "Only necessary applicant attributes are persisted.",
+        "observed_code_behavior": "cases schema has email, amount, term, income, confirmed, route, stage; INSERT writes owner, officer, email, amount, term, income, route, stage. No purposeless attribute column exists.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 36,
+            "end_line": 38,
+            "role": "control",
+            "explanation": "Schema columns contain no field lacking business purpose."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 77,
+            "end_line": 78,
+            "role": "operation",
+            "explanation": "INSERT persists only necessary applicant fields."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Onward disclosure (offer and portable)",
+        "required_behavior": "Fields sent onward are limited to necessary ones.",
+        "observed_code_behavior": "offer() returns case id, email, amount, term; portable() returns email, amount, income.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 111,
+            "end_line": 112,
+            "role": "propagation",
+            "explanation": "offer() forwards only id/email/amount/term."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 114,
+            "end_line": 116,
+            "role": "propagation",
+            "explanation": "portable() exports only email/amount/income."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Bounded request parsing (app.py POST body)",
+        "required_behavior": "Payload parsing is bounded and rejects duplicates before acceptance.",
+        "observed_code_behavior": "POST requires urlencoded content type, size <=16000, max_num_fields=18, and rejects duplicate fields before flattening into data.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "app.py",
+            "start_line": 50,
+            "end_line": 55,
+            "role": "control",
+            "explanation": "Bounded, duplicate-free parsing precedes submit()."
+          }
+        ],
+        "decisive_unknown": ""
+      }
+    ],
+    "proposed_status": "SUPPORTED",
+    "summary": "The supplied source limits the application form (views.py:0031-0032) to email, amount, term, income and an optional route checkbox; store.submit enforces a strict allowlist {email, amount, term, income, auto} (store.py:0067) so a purposeless field such as a hobby is rejected before persistence; the cases schema and INSERT (store.py:0036-0038, 0077-0078) store only necessary attributes; offer() and portable() forward only necessary fields (store.py:0112, 0116); and request parsing is bounded (app.py:0050-0055). The minimization predicate is satisfied by static reading of the supplied artifacts.",
+    "missing_information": [
+      "No runtime execution or observed behavior; assessment is static reading of the supplied artifacts only.",
+      "The optional 'auto' consent checkbox is treated as a route/consent choice, not an applicant data attribute; its necessity is not evaluated here.",
+      "Officer-side 'verify' partner band import (store.py:0158-0160) and preference/campaign flows are outside the named applicant-field minimization predicate and not assessed."
+    ]
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "stage": "locus_finder",
+  "input_hash": "afd3d31c52a33f75b2d045c03080f15d09063aabc8fe27dfeead0e80df57acc9",
+  "seconds": 4.37,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 10541,
+        "output_tokens": 814,
+        "total_tokens": 11355,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "loci": [
+      {
+        "artifact": "store.py",
+        "start_line": 210,
+        "end_line": 212,
+        "rationale": "Erase entrypoint: eligibility gate stage=='abandoned' then DELETE FROM cases WHERE id=? — the sole deletion of the target case row."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 39,
+        "end_line": 44,
+        "rationale": "Schema: summaries, events and jobs reference cases with ON DELETE CASCADE, so business-retrievable copies (summary, events, pending jobs) are removed with the case row."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 26,
+        "end_line": 26,
+        "rationale": "PRAGMA foreign_keys=ON on every connection is what makes the cascade effective for the erase transaction."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 124,
+        "end_line": 143,
+        "rationale": "drain replays jobs selected by cid from the jobs table; with the case and its jobs deleted there is no row to replay, so later replay cannot resurrect the target."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 55,
+        "end_line": 58,
+        "rationale": "get_case scopes retrieval to owner/officer by cid, so deleting one case does not affect an unrelated active case."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 97,
+        "end_line": 99,
+        "rationale": "Route dispatch: POST /case/<id>/erase calls store.action(...,'erase') and redirects; confirms the erase path is reachable only through the case action handler."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 205,
+        "end_line": 209,
+        "rationale": "abandon sets stage='abandoned' and cancels queued jobs, establishing the eligible state the erase gate depends on."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 71,
+        "end_line": 71,
+        "rationale": "UI exposes erase only for stage=='abandoned' owner cases, consistent with the eligibility gate."
+      }
+    ],
+    "path_summary": "POST /case/<cid>/erase (app.py:0097-0099) -> store.action op=='erase' (store.py:0210-0212): requires stage=='abandoned', then DELETE FROM cases WHERE id=cid. With PRAGMA foreign_keys=ON (store.py:0026), the ON DELETE CASCADE references on summaries, events and jobs (store.py:0039-0044) remove the summary, event log and pending jobs for that cid. drain (store.py:0124-0143) iterates jobs WHERE cid=? from the jobs table, so after deletion no job row exists to replay and the target cannot be resurrected. get_case (store.py:0055-0058) and the dashboard query (app.py:0077) are keyed by cid/owner, so an unrelated active case remains retrievable.",
+    "missing_boundaries": [
+      "No execution, database inspection or replay was performed; conclusions are static source reading only.",
+      "Cascade effectiveness depends on PRAGMA foreign_keys=ON applying to the erase connection (store.py:0026); not verified at runtime.",
+      "Copies outside the modeled tables (receiver payloads, choices, backups, logs) are not addressed by the erase path and are outside the named predicate's scope.",
+      "No retention-override or Art. 17(3) exception handling exists in code; the stipulated absence of exceptions is a scenario input, not a code fact."
+    ]
+  }
+}

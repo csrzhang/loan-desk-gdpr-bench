@@ -1,0 +1,98 @@
+{
+  "stage": "regulatory_arbiter",
+  "input_hash": "ed6ca941da39ac8371a024ae068b666f1da21105f27f73f6a17245babcf7aee2",
+  "seconds": 6.929,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 13623,
+        "output_tokens": 1425,
+        "total_tokens": 15048,
+        "input_token_details": {
+          "cache_read": 1152,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "case_id": "case-2f00ba44b200a66d",
+    "rule_id": "GDPR02",
+    "status": "SUPPORTED",
+    "short_explanation": "The partner-confirmed band (cases.confirmed) is written by verify as underwriting input and read only in the automatic score branch; marketing audience selection (eligible_campaign) and promotion delivery use only owner identity, promotions/objection choices and case eligibility (restricted, stage), and promotion content carries no income band.",
+    "detailed_explanation": "Code facts: The partner band enters state only through action \"verify\", which requires a pending, unrestricted case and writes data[\"band\"] into cases.confirmed while logging it as supplied \"for underwriting\" (store.py:0157-0160). The only read of c[\"confirmed\"] in the supplied source is in drain's score branch, where band=c[\"confirmed\"] or c[\"income\"] feeds the automatic underwriting decision and the amount/limit comparison (store.py:0131-0135). Marketing audience selection is eligible_campaign, which selects owner from cases filtered on restricted=0 and stage!='abandoned' and then requires the promotions choice on and the objection choice off (store.py:0100-0103); campaign() queues promotion jobs solely through that predicate (store.py:0105-0109). Promotion delivery in drain is gated by eligible_campaign and emits the generic body \"A new loan offer is available.\" (store.py:0140-0142); the owner-initiated \"promotion\" action is likewise gated by eligible_campaign and queues the job without band content (store.py:0165-0171). The offer payload carries only case id, email, amount and term (store.py:0111-0112). The permitted subscription fields are stored by preference() for purposes \"insights\", \"promotions\" and \"objection\", and opt-out/objection cancels queued promotion jobs (store.py:0092-0098). The other write to cases.confirmed is notify-release, a restriction-release verification step, not a marketing path (store.py:0179-0182).\n\nRequirement: Article 5(1)(b) with 6(4) as operationalized by this rule: partner-confirmed income must be used for underwriting only, while marketing selection and delivery may use only the permitted subscription and case eligibility fields. The scenario supplies the trigger — an opted-in subscriber with a partner-confirmed income band for underwriting and no compatible marketing purpose or new legal basis for targeting with that band — so the restriction is applicable and no compatible-purpose exception is available.\n\nJustification: The verified source shows the confirmed band is purpose-bound at entry to underwriting and consumed only by the underwriting decision branch; no marketing selection or delivery path reads income or confirmed, and promotion content and the offer payload omit the band. Marketing eligibility is driven exclusively by the permitted promotions/objection choices and case eligibility fields, which is exactly what the rule permits. No in-scope counterexample was found: the second write to confirmed (notify-release) and the display of confirmed in the case detail view are not marketing uses. Static source review only; no code was executed, and this verdict is scoped to the named purpose-limitation behavior, not whole-product compliance.",
+    "evidence": [
+      {
+        "artifact": "store.py",
+        "start_line": 157,
+        "end_line": 160,
+        "role": "trigger",
+        "explanation": "verify writes the partner band into cases.confirmed and logs it as supplied 'for underwriting', establishing the purpose-bound field."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 131,
+        "end_line": 135,
+        "role": "operation",
+        "explanation": "The only read of c['confirmed'] is the automatic score/underwriting decision (band=c['confirmed'] or c['income']); no marketing branch reads it."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 100,
+        "end_line": 103,
+        "role": "control",
+        "explanation": "eligible_campaign selects audience on owner, restricted=0, stage!='abandoned' and promotions/objection choices only; income and confirmed are not referenced."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 105,
+        "end_line": 109,
+        "role": "propagation",
+        "explanation": "campaign() queues promotion jobs solely through eligible_campaign, so officer-driven audience selection cannot reach the confirmed band."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 140,
+        "end_line": 142,
+        "role": "operation",
+        "explanation": "Promotion delivery is gated by eligible_campaign and emits a generic message with no income band."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 165,
+        "end_line": 171,
+        "role": "control",
+        "explanation": "Owner-initiated promotion action is gated by eligible_campaign (permitted fields only), not by the confirmed band."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 92,
+        "end_line": 98,
+        "role": "control",
+        "explanation": "Preference store defines the permitted promotions/objection subscription fields and cancels queued promotions on opt-out/objection."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 111,
+        "end_line": 112,
+        "role": "propagation",
+        "explanation": "Offer payload carries case id, email, amount, term only; the confirmed band is not propagated into this output."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 179,
+        "end_line": 182,
+        "role": "exception",
+        "explanation": "notify-release also writes cases.confirmed, but only as a restriction-release verification step, not a marketing path."
+      }
+    ],
+    "missing_information": [
+      "No execution or runtime observation was performed; assessment is static source review only.",
+      "portable() (store.py:0114-0116) exports the declared income field on a data-portability request; that is a separate data-subject right, not marketing use, and is outside this predicate.",
+      "No upstream or hidden implementation is inferred; only the supplied artifacts are authoritative.",
+      "Other GDPR duties (e.g. Article 6(1) bases, transparency) are out of scope for this rule."
+    ]
+  }
+}

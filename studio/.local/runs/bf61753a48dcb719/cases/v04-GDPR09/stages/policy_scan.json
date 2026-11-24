@@ -1,0 +1,49 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "93c7e6833cf34a39146defaf9734f29c9061fc97f51edab40230bcdbe947bb0a",
+  "seconds": 4.41,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9883,
+        "output_tokens": 715,
+        "total_tokens": 10598,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "When a data subject disputes the accuracy of data (here the partner income band) and the record is retained for verification, ordinary use of that data — including scoring, queued jobs and retries — must stop; the restriction may only be lifted after the applicant is notified, and the verified data may then be used.",
+    "applicability_facts": [
+      "Scenario: accuracy of the partner income band is disputed before a queued score runs.",
+      "Scenario: the record is retained for verification.",
+      "Scenario: none of the exceptions for ordinary scoring applies.",
+      "Code: cases table carries a 'restricted' flag (store.py:0038) and a 'confirmed' band (store.py:0037).",
+      "Code: the 'restrict' action sets restricted=1 and logs 'Accuracy disputed. Ordinary processing paused.' (store.py:0175-0178).",
+      "Code: 'notify-release' requires restricted==1 plus a verified band and finding, sets restricted=2 (store.py:0179-0182); 'release' requires restricted==2 before clearing it (store.py:0183-0186)."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "No exception for ordinary scoring applies per the scenario; the code's restriction gate is the only carve-out path.",
+      "Restriction is unavailable for abandoned cases or already-restricted cases (store.py:0176)."
+    ],
+    "required_controls": [
+      "Restriction flag must block the queued score job: drain() skips non-score jobs when restricted but still executes 'score' jobs (store.py:0126-0135), so a queued score can run and set stage offered/declined despite restricted=1 — the disputed data is used for ordinary scoring.",
+      "Restriction must block retries/re-queuing of scoring; no code path prevents a score job from being queued or re-run while restricted (store.py:0085-0086, 0124-0143).",
+      "Lifting the restriction must require prior applicant notification: 'release' requires restricted==2, which only 'notify-release' sets (store.py:0179-0186) — this ordering control is present.",
+      "Verified data must be used after release: 'notify-release' stores confirmed band (store.py:0181) and drain() prefers confirmed over declared income (store.py:0132) — present.",
+      "Retention for verification must be preserved while restricted: no erase path applies to restricted live cases (store.py:0210-0212 requires abandoned)."
+    ],
+    "assessment_limits": [
+      "Assessment is static reading of supplied source; no execution, no runtime verification.",
+      "Only the named obligation (GDPR 18(1)(a), 18(2), 18(3)) is assessed; other GDPR duties are out of scope.",
+      "Whether a score job is actually queued in the scenario's database is a scenario fact, not verified in code.",
+      "No inference about upstream or hidden implementation; conclusions rest solely on the supplied artifacts."
+    ]
+  }
+}

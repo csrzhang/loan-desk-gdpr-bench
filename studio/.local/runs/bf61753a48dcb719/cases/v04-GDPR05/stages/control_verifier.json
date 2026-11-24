@@ -1,0 +1,127 @@
+{
+  "stage": "control_verifier",
+  "input_hash": "a81e2d62a36fd8cf95ec6be0d3e061645d5afae50a124522e2d1bf8e4b12405c",
+  "seconds": 5.776,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 11899,
+        "output_tokens": 1208,
+        "total_tokens": 13107,
+        "input_token_details": {
+          "cache_read": 1152,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "checks": [
+      {
+        "target": "Direct collection notice: NOTICE presented with the /apply form before submission",
+        "required_behavior": "Scoped processing information (NOTICE) must be made available to the applicant at the point of direct collection.",
+        "observed_code_behavior": "views.dashboard builds the /apply form fields starting with notice(), which renders NOTICE in a details block (views.py 0024-0025, 0031). The form posts to /apply -> store.submit. So the notice is displayed on the same page as the collection form.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "views.py",
+            "start_line": 24,
+            "end_line": 25,
+            "role": "operation",
+            "explanation": "notice() renders NOTICE as a details block."
+          },
+          {
+            "artifact": "views.py",
+            "start_line": 31,
+            "end_line": 31,
+            "role": "control",
+            "explanation": "The /apply form fields begin with notice(), placing the notice at collection."
+          },
+          {
+            "artifact": "app.py",
+            "start_line": 83,
+            "end_line": 84,
+            "role": "propagation",
+            "explanation": "POST /apply routes to store.submit."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 9,
+            "end_line": 9,
+            "role": "operation",
+            "explanation": "NOTICE constant holds the scoped processing information."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Indirect import source-specific notice: 'verify' action writes partner notice to case inbox",
+        "required_behavior": "On the Income Registry import, a source-specific notice naming the source and purpose must be delivered to the case inbox by its deadline.",
+        "observed_code_behavior": "store.action op 'verify' (staff-only) inserts an event of kind 'partner notice' with body 'Income Registry supplied income band ... for underwriting. '+NOTICE into the events table for the case (store.py 0160). This is the case inbox store; the event is rendered in the case history (views.py 0076, 0079). The notice is recorded at the moment of import regardless of whether the applicant opens the case.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "app.py",
+            "start_line": 97,
+            "end_line": 98,
+            "role": "trigger",
+            "explanation": "POST /case/<id>/verify routes to store.action op 'verify'."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 157,
+            "end_line": 160,
+            "role": "operation",
+            "explanation": "verify writes a 'partner notice' event naming Income Registry and underwriting purpose plus NOTICE."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 51,
+            "end_line": 53,
+            "role": "propagation",
+            "explanation": "event() inserts the notice into the events table (case inbox store)."
+          },
+          {
+            "artifact": "views.py",
+            "start_line": 76,
+            "end_line": 79,
+            "role": "propagation",
+            "explanation": "Case history renders events, making the partner notice retrievable in the case inbox."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Notice retrievability: applicant can obtain NOTICE via access copy",
+        "required_behavior": "The scoped processing information must be retrievable by the applicant.",
+        "observed_code_behavior": "store.access returns processing_information=NOTICE (store.py 0120), served as JSON via GET /case/<id>/access (app.py 0100-0109). The case history also renders the partner notice event.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 118,
+            "end_line": 122,
+            "role": "operation",
+            "explanation": "access() returns processing_information=NOTICE and the timeline events."
+          },
+          {
+            "artifact": "app.py",
+            "start_line": 100,
+            "end_line": 109,
+            "role": "propagation",
+            "explanation": "GET access/portable/offer returns JSON including the access payload."
+          }
+        ],
+        "decisive_unknown": ""
+      }
+    ],
+    "proposed_status": "SUPPORTED",
+    "summary": "Both scoped notice paths are present in source. At direct collection, the /apply form includes notice() rendering NOTICE (views.py 0024-0025, 0031) before submission via store.submit. For the indirect Income Registry import, the staff 'verify' action writes a source-specific 'partner notice' event naming the Income Registry and underwriting purpose plus NOTICE into the case inbox (store.py 0160), rendered in the case history (views.py 0076, 0079) and retrievable via store.access (store.py 0120). The notice is recorded at import time regardless of whether the applicant opens the case, satisfying the immediate-delivery feasible means. Static source reading only; no execution performed.",
+    "missing_information": [
+      "Whether the applicant opens the case inbox is a scenario variable; the code records the notice to the inbox regardless, so delivery does not depend on opening.",
+      "Adequacy of NOTICE wording against Art. 13(1)-(2)/14(1)-(3) content elements is judged only from the constant text, not from legal interpretation of completeness."
+    ]
+  }
+}

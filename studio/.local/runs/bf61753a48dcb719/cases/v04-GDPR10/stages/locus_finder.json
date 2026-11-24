@@ -1,0 +1,72 @@
+{
+  "stage": "locus_finder",
+  "input_hash": "dfb8bab62f2b795500ab6c37567ec6a3be49bf7bdad6b83cf99d3db78270dedd",
+  "seconds": 3.603,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 10568,
+        "output_tokens": 671,
+        "total_tokens": 11239,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "loci": [
+      {
+        "artifact": "store.py",
+        "start_line": 36,
+        "end_line": 38,
+        "rationale": "Case schema persists the four borrower-provided fields (email, amount, term, income) plus stage; establishes the data source for portability."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 77,
+        "end_line": 78,
+        "rationale": "Application submission stores email, amount, term, income from the form into the case row — the provided (not inferred) fields."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 114,
+        "end_line": 116,
+        "rationale": "portable() gates on stage=='accepted' and returns only email, amount, income — 'term' is omitted, so the four-field completeness requirement is not met."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 100,
+        "end_line": 109,
+        "rationale": "GET /case/<id>/portable route: owner-only gate (0105), JSON serialization with application/json and attachment disposition (0107-0109) — machine-readable export path."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 201,
+        "end_line": 204,
+        "rationale": "transfer action restricts destination to 'Local Credit Union' and persists json.dumps(portable(c)) to receiver — direct transfer reuses the same incomplete payload."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 69,
+        "end_line": 70,
+        "rationale": "UI exposes portable download and transfer controls only when stage=='accepted', matching the contract precondition."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 197,
+        "end_line": 200,
+        "rationale": "accept action transitions stage to 'accepted', the state that unlocks portable() and transfer."
+      }
+    ],
+    "path_summary": "Borrower submits email/amount/term/income (store.py:77-78) persisted on the case row (store.py:36-38). After accept sets stage='accepted' (store.py:197-200), the owner can GET /case/<id>/portable (app.py:100-109), which calls store.portable (store.py:114-116) and serializes to JSON with application/json + attachment (app.py:107-109). The transfer action (store.py:201-204) writes json.dumps(portable(c)) to the receiver table for 'Local Credit Union'. portable() returns only email, amount, income — term is missing, so the four-field completeness predicate fails; no inferred decision fields are included.",
+    "missing_boundaries": [
+      "No execution or runtime verification of the JSON response or receiver table contents; static reading only.",
+      "Whether the scenario case is actually in stage 'accepted' is a scenario fact, not verified against a database.",
+      "No assessment of receiver onward handling or other GDPR articles beyond GDPR10."
+    ]
+  }
+}

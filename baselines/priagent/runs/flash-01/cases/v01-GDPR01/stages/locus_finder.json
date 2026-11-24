@@ -1,0 +1,79 @@
+{
+  "stage": "locus_finder",
+  "input_hash": "05543dba971a7b14a03f7eeed771b1441386414c8ba52a8036d572683201ef31",
+  "seconds": 4.019,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 10587,
+        "output_tokens": 737,
+        "total_tokens": 11324,
+        "input_token_details": {
+          "cache_read": 768,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "loci": [
+      {
+        "artifact": "views.py",
+        "start_line": 31,
+        "end_line": 32,
+        "rationale": "The /apply form renders only contact email, amount, term, income band, plus the optional auto-route checkbox; no extraneous applicant attribute (e.g. hobby) is collected."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 67,
+        "end_line": 67,
+        "rationale": "Server-side allow-list on the accepted /apply payload: set(data) <= {email, amount, term, income, auto}, rejecting any unexpected field."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 73,
+        "end_line": 75,
+        "rationale": "Validation of income band against LIMITS and the auto choice; route derived from the optional checkbox, not an applicant attribute."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 77,
+        "end_line": 79,
+        "rationale": "Persistence inserts only owner, officer, email, amount, term, income, route, stage; summary title uses amount and term only."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 36,
+        "end_line": 38,
+        "rationale": "cases schema has columns only for the necessary fields; no slot for extraneous attributes such as a hobby."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 111,
+        "end_line": 112,
+        "rationale": "Onward offer payload limited to case id, email, amount, term."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 114,
+        "end_line": 116,
+        "rationale": "Portable export limited to email, amount, income."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 201,
+        "end_line": 203,
+        "rationale": "Transfer to receiving controller forwards only the portable subset (email, amount, income)."
+      }
+    ],
+    "path_summary": "Entrypoint: POST /apply (app.py:0083-0084) passes parsed form data to store.submit. submit() enforces an allow-list of {email, amount, term, income, auto} (store.py:0067), validates amount/term/income (0069-0074), and persists only owner, officer, email, amount, term, income, route, stage (0077-0078) into a schema with no extraneous columns (0036-0038). Downstream uses: offer() sends only id/email/amount/term (0112); portable() exports email/amount/income (0116); transfer() stores that same subset for the receiving controller (0203). The form (views.py:0031-0032) renders exactly these inputs. No field lacking a business purpose in the fixture is collected, accepted, persisted or forwarded; the auto checkbox is a route/consent choice, not an applicant attribute.",
+    "missing_boundaries": [
+      "Static reading only; no execution or runtime observation was performed.",
+      "Only the /apply path is assessed; login, preference, campaign and case-action forms are separate flows outside this predicate.",
+      "Other GDPR duties (consent, retention, rights) are out of scope.",
+      "No hidden implementation or upstream behavior is inferred."
+    ]
+  }
+}

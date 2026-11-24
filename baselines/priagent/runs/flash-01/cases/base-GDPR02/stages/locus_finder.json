@@ -1,0 +1,80 @@
+{
+  "stage": "locus_finder",
+  "input_hash": "91bb191335f22dca63dcbb02b976ef64947d49dc39d9a8e1cf11209b16fc95f1",
+  "seconds": 6.228,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 10584,
+        "output_tokens": 832,
+        "total_tokens": 11416,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "loci": [
+      {
+        "artifact": "store.py",
+        "start_line": 100,
+        "end_line": 109,
+        "rationale": "Marketing audience selection (eligible_campaign/campaign): reads only owner, restricted=0, stage!='abandoned', promotions enabled and objection not enabled; does not read cases.confirmed or cases.income. This is the decisive control for the purpose-limitation predicate."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 140,
+        "end_line": 142,
+        "rationale": "Promotion delivery in drain: emits a generic offer message with no income-band value, so delivery does not use the partner-confirmed band."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 131,
+        "end_line": 135,
+        "rationale": "Underwriting use of the band: score job consumes c['confirmed'] or c['income'] to decide offered/declined — the permitted underwriting purpose."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 157,
+        "end_line": 160,
+        "rationale": "Entrypoint that writes the partner-confirmed band (cases.confirmed) via 'verify', recorded for underwriting only — establishes the data whose downstream use is constrained."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 88,
+        "end_line": 98,
+        "rationale": "Permitted subscription choices (promotions/objection/insights) stored in choices and used to cancel queued jobs; the lawful marketing inputs."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 165,
+        "end_line": 171,
+        "rationale": "Promotion job creation path: queues only cid/kind, carries no band parameter, and gates on eligible_campaign."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 191,
+        "end_line": 196,
+        "rationale": "Human credit decision (review) — the other underwriting use of case data; no marketing consumption of the band."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 36,
+        "end_line": 44,
+        "rationale": "Schema: cases.confirmed/income columns and jobs(cid,kind) table show the band is stored on the case and jobs carry no targeting payload."
+      }
+    ],
+    "path_summary": "Partner-confirmed band enters via 'verify' (store.py:0157-0160) into cases.confirmed and is consumed only by the underwriting score job (store.py:0131-0135) and human review (store.py:0191-0196). Marketing selection (eligible_campaign, store.py:0100-0103) draws only on owner, restricted, stage and promotions/objection choices; campaign (0105-0109) and promotion job creation (0165-0171) queue only cid/kind; delivery (0140-0142) emits a generic message with no band. Thus the band is not used for marketing selection or delivery, satisfying the purpose-limitation predicate given the stipulated absence of a compatible purpose or new legal basis.",
+    "missing_boundaries": [
+      "Static reading only; no execution or runtime verification of query results.",
+      "Only app.py, store.py, views.py, style.css supplied; no migrations, logs, or external partner fixtures inspected.",
+      "Whether a compatible marketing purpose or new legal basis exists is stipulated by the scenario, not verified from code.",
+      "views.py:0050 displays the confirmed band on the case detail page to owner and officer; treated as case-file display, not marketing selection/delivery, and outside the named predicate.",
+      "No determination on other GDPR obligations (e.g., Art. 6(1) basis for underwriting, Art. 22 automated decisions)."
+    ]
+  }
+}

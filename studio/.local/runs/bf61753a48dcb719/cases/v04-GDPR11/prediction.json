@@ -1,0 +1,77 @@
+{
+  "case_id": "v04-GDPR11",
+  "verdict": "SUPPORTED",
+  "explanation": "Code facts: The objection is recorded through app.py:85-86 (/preference POST -> store.preference(db, who, purpose, value)). store.py:92-95 validates purpose in (\"insights\",\"promotions\",\"objection\") and value in (\"on\",\"off\") and inserts a choices row with int(value==\"on\"), so (\"objection\",\"on\") stores value=1 for that owner; store.py:88-90 enabled() reads the latest row per owner/purpose, making the objection a per-owner flag. store.py:96-98 then, for (purpose,value) in ((\"promotions\",\"off\"),(\"objection\",\"on\")), sets kind=\"promotion\" and updates jobs to state='cancelled' WHERE kind=? AND state='queued' AND cid IN (SELECT id FROM cases WHERE owner=?) — cancelling promotions already queued for the objecting owner's cases. store.py:100-103 eligible_campaign() requires restricted=0, stage!='abandoned', enabled(promotions) and not enabled(objection) for the case's owner. That predicate gates campaign() queueing (store.py:105-109), the manual promotion action (store.py:165-171), and drain()'s promotion branch (store.py:140-143), where the job state defaults to \"cancelled\" (store.py:0130) and a promotion event is emitted only if eligibility holds. drain()'s skip logic (store.py:126-128) applies only to restricted cases and non-\"score\" jobs, and the \"score\" branch (store.py:131-135) consults no marketing preference.\n\nRequirement: Article 21(2)-(3) as scoped requires that an objection to direct marketing blocks marketing selection and future marketing processing for that subject, including promotions pending at objection time, while service messages and unaffected subscribers remain eligible. The scenario stipulates a borrower with active promotions consent who objects after a campaign is queued, a second subscribed borrower with no objection, and continuing necessary service decisions.\n\nJustification: Each element of the predicate is supported by visible code: persistence of the objection (store.py:92-95, 88-90), cancellation of pending promotions (store.py:96-98), exclusion from future selection (store.py:100-103, 105-109, 165-171), and processing-time re-check preventing delivery (store.py:140-143). Service decisions are independent of marketing flags (store.py:126-135), and both cancellation and eligibility are owner-scoped, so the non-objecting borrower remains eligible. No in-scope counterexample was found; the only residual edges (a later \"objection\"=\"off\" row re-enabling marketing, and jobs attached to cases owned by a different subject) are outside the stipulated facts. Assessment is static reading of the supplied artifacts; no code was executed.",
+  "evidence": [
+    {
+      "path": "app.py",
+      "start_line": 85,
+      "end_line": 90,
+      "quote": "                    elif path==\"/preference\" and method==\"POST\":\n                        store.preference(db,who,data.get(\"purpose\"),data.get(\"value\"))\n                        location=\"/\"\n                    elif path==\"/campaign\" and method==\"POST\":\n                        store.campaign(db,who)\n                        location=\"/\"",
+      "supports": "/preference POST routes to store.preference with purpose/value; /campaign POST routes to store.campaign — the entrypoints connecting objection and marketing selection."
+    },
+    {
+      "path": "store.py",
+      "start_line": 92,
+      "end_line": 95,
+      "quote": "def preference(db, who, purpose, value):\n    require(who in CUSTOMERS and purpose in (\"insights\",\"promotions\",\"objection\") and value in (\"on\",\"off\"),\"Invalid preference.\")\n    db.execute(\"INSERT INTO choices(owner,purpose,value,version,at) VALUES(?,?,?,?,?)\",\n               (who,purpose,int(value==\"on\"),VERSION,datetime.now(timezone.utc).isoformat()))",
+      "supports": "preference() accepts purpose 'objection' with value 'on' and persists a per-owner choices row with value=1."
+    },
+    {
+      "path": "store.py",
+      "start_line": 88,
+      "end_line": 90,
+      "quote": "def enabled(db, owner, purpose):\n    row=db.execute(\"SELECT value FROM choices WHERE owner=? AND purpose=? ORDER BY id DESC LIMIT 1\",(owner,purpose)).fetchone()\n    return bool(row and row[0])",
+      "supports": "enabled() reads the latest choices row per owner/purpose, so the persisted objection is consumed as a per-owner flag."
+    },
+    {
+      "path": "store.py",
+      "start_line": 96,
+      "end_line": 98,
+      "quote": "    if (purpose,value)==(\"insights\",\"off\") or (purpose,value) in ((\"promotions\",\"off\"),(\"objection\",\"on\")):\n        kind = \"report\" if purpose==\"insights\" else \"promotion\"\n        db.execute(\"UPDATE jobs SET state='cancelled' WHERE kind=? AND state='queued' AND cid IN (SELECT id FROM cases WHERE owner=?)\",(kind,who))",
+      "supports": "On ('objection','on') queued 'promotion' jobs for the owner's cases are set to state='cancelled', covering promotions pending at objection time."
+    },
+    {
+      "path": "store.py",
+      "start_line": 100,
+      "end_line": 103,
+      "quote": "def eligible_campaign(db,cid):\n    # Audience inputs are limited to identity, current preferences and case eligibility.\n    r=db.execute(\"SELECT owner FROM cases WHERE id=? AND restricted=0 AND stage!='abandoned'\",(cid,)).fetchone()\n    return bool(r and enabled(db,r[0],\"promotions\") and not enabled(db,r[0],\"objection\"))",
+      "supports": "eligible_campaign() requires promotions enabled and objection absent, evaluated for the case owner, excluding the objecting subject while leaving others eligible."
+    },
+    {
+      "path": "store.py",
+      "start_line": 105,
+      "end_line": 109,
+      "quote": "def campaign(db, who):\n    require(who in OFFICERS,\"Officer account required.\",403)\n    for row in db.execute(\"SELECT id FROM cases WHERE officer=?\",(who,)):\n        if eligible_campaign(db,row[0]):\n            queue(db,row[0],\"promotion\")",
+      "supports": "campaign() queues 'promotion' only for cases passing eligible_campaign(), gating future marketing selection."
+    },
+    {
+      "path": "store.py",
+      "start_line": 140,
+      "end_line": 143,
+      "quote": "        elif kind==\"promotion\" and eligible_campaign(db,cid):\n            event(db,cid,\"promotion\",\"A new loan offer is available.\")\n            state=\"done\"\n        db.execute(\"UPDATE jobs SET state=? WHERE id=?\",(state,job[\"id\"]))",
+      "supports": "drain() emits a promotion event only when eligible_campaign() holds at processing time; otherwise the job remains 'cancelled', so a queued promotion is not delivered after objection."
+    },
+    {
+      "path": "store.py",
+      "start_line": 165,
+      "end_line": 171,
+      "quote": "    elif op in (\"report\",\"promotion\"):\n        require(stage!=\"abandoned\",\"Application closed.\")\n        if op==\"report\":\n            require(enabled(db,who,\"insights\"),\"Enable optional insights first.\",409)\n        else:\n            require(eligible_campaign(db,cid),\"Outside campaign audience.\",409)\n        queue(db,cid,op)",
+      "supports": "The manual 'promotion' action also requires eligible_campaign(), so ad-hoc promotion queueing is blocked by an objection."
+    },
+    {
+      "path": "store.py",
+      "start_line": 126,
+      "end_line": 135,
+      "quote": "    for job in rows(db,\"SELECT * FROM jobs WHERE cid=? AND state='queued' ORDER BY id\",(cid,)):\n        if c[\"restricted\"] and job[\"kind\"] != \"score\":\n            continue\n        kind=job[\"kind\"]\n        state=\"cancelled\"\n        if kind==\"score\" and c[\"route\"]==\"automatic\" and c[\"stage\"]==\"pending\":\n            band=c[\"confirmed\"] or c[\"income\"]\n            stage=\"offered\" if c[\"amount\"]<=LIMITS[band] else \"declined\"\n            db.execute(\"UPDATE cases SET stage=? WHERE id=?\",(stage,cid))\n            event(db,cid,\"decision\",f\"Automatic {stage}. Amount {c['amount']} compared with {band} limit {LIMITS[band]}.\")",
+      "supports": "drain() skip logic applies only to restricted cases and non-'score' jobs; the 'score' service-decision branch consults no marketing preference, preserving necessary service processing."
+    },
+    {
+      "path": "views.py",
+      "start_line": 33,
+      "end_line": 36,
+      "quote": "        body+='<div class=\"grid\"><section><h2>New application</h2>'+form(\"/apply\",t,\"Submit application\",fields)+'</section><section><h2>Privacy choices</h2><p>Insights create a private repayment estimate. Promotions send loan offers. Both are optional. Withdraw at any time here. An objection stops all direct marketing.</p>'\n        for key,label in ((\"insights\",\"Repayment insights\"),(\"promotions\",\"Loan promotions\"),(\"objection\",\"Marketing objection\")):\n            on=enabled(db,who,key)\n            body+=f'<div class=\"pref\"><b>{label}</b><span>{\"On\" if on else \"Off\"}</span>'+form(\"/preference\",t,\"Switch off\" if on else \"Switch on\",f'<input type=\"hidden\" name=\"purpose\" value=\"{key}\"><input type=\"hidden\" name=\"value\" value=\"{\"off\" if on else \"on\"}\">', \"quiet\")+'</div>'",
+      "supports": "UI exposes the 'objection' toggle as a distinct per-owner control alongside promotions and insights."
+    }
+  ]
+}

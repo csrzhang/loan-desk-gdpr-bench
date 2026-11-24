@@ -1,0 +1,48 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "4020a0fe69758187e58e70338e442e409b056f4d034c2d3a756cf199197dcfee",
+  "seconds": 4.468,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9878,
+        "output_tokens": 734,
+        "total_tokens": 10612,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "Partner-confirmed income band (cases.confirmed) must be used only for underwriting (automatic scoring / human credit decision); marketing selection and delivery must draw only on permitted subscription choices (promotions/objection) and case eligibility fields (restricted flag, stage).",
+    "applicability_facts": [
+      "Scenario: opted-in subscriber holds a partner-confirmed income band recorded for underwriting (store.py:0157-0160 'verify' writes cases.confirmed).",
+      "Scenario: no compatible marketing purpose and no new legal basis exists for targeting with that band.",
+      "Marketing selection path exists: store.py:0100-0109 eligible_campaign/campaign; delivery path store.py:0140-0142 promotion job in drain.",
+      "Underwriting use of the band exists: store.py:0131-0135 score job uses c['confirmed'] or c['income']."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "None applicable: scenario stipulates no compatible purpose under Art. 6(4) and no new legal basis, so no purpose-limitation exception is available for marketing use of the band.",
+      "Permitted marketing inputs remain lawful: separate promotions consent and objection choice (store.py:0088-0098, 0100-0103) and case eligibility fields (restricted, stage)."
+    ],
+    "required_controls": [
+      "Marketing audience selection must not read cases.confirmed or cases.income; eligible_campaign (store.py:0100-0103) selects only owner, restricted=0, stage!='abandoned', promotions enabled, objection not enabled — this satisfies the limit.",
+      "Promotion delivery (store.py:0140-0142) must emit content not derived from the confirmed band; the emitted event text is a generic offer message with no band reference — satisfies the limit.",
+      "Promotion job creation (store.py:0105-0109, 0165-0171) must not carry the band as a targeting parameter; jobs table stores only cid and kind — satisfies the limit.",
+      "Underwriting-only use of the band must be confined to score (store.py:0131-0135) and human review (store.py:0191-0196); no other path may consume cases.confirmed for marketing.",
+      "Observable check: any marketing output (promotion event body, campaign audience query) must be free of income-band values."
+    ],
+    "assessment_limits": [
+      "Assessment is static reading of supplied source only; no execution, no runtime verification of query results.",
+      "Only app.py, store.py, views.py, style.css supplied; no schema migrations, logs, or external partner fixtures inspected.",
+      "Whether a compatible marketing purpose or new legal basis exists is stipulated by the scenario, not verified from code.",
+      "views.py:0050 displays the confirmed band on the case detail page to owner and officer; that is case-file display, not marketing selection/delivery, and is outside the named predicate.",
+      "No determination made on other GDPR obligations (e.g., Art. 6(1) basis for underwriting, Art. 22 automated decisions)."
+    ]
+  }
+}

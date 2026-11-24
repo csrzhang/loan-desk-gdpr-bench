@@ -1,0 +1,48 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "b89f58c23b49c8d59a3a9058c27892cdd79d8356587b9379b6290618d449d0e4",
+  "seconds": 4.673,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9854,
+        "output_tokens": 626,
+        "total_tokens": 10480,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "After a borrower's rectification request for the contact email, the corrected address is persisted to the case record and used as the recipient of subsequent offers, including offers generated after the database is reopened; other cases are unaffected.",
+    "applicability_facts": [
+      "Scenario: borrower corrects a contact email (rectification request under Art. 16).",
+      "Scenario: after reopening the database, the next offer must use the corrected address.",
+      "Scenario: a separate live case is unaffected (per-case isolation).",
+      "Source: the 'correct' action is reachable by the case owner (app.py 0097-0099; views.py 0067) and validates the email (store.py 0172-0174).",
+      "Source: offers are rendered from the stored case row's email field (store.py 0111-0112; app.py 0100-0109).",
+      "Source: case data is persisted in SQLite and re-read per request via a fresh connection (store.py 0022-0031, 0055-0058)."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "No exception applies to the persistence/use of a corrected email for the same case; the restriction mechanism (store.py 0175-0178) pauses ordinary processing but does not exempt rectification.",
+      "Erase is limited to abandoned cases (store.py 0210-0212) and is not a rectification exception."
+    ],
+    "required_controls": [
+      "The 'correct' action must write the validated email into the cases row (UPDATE cases SET email=... WHERE id=?) rather than only logging an event.",
+      "The offer output must read the email from the persisted case row so that a reopened database yields the corrected address.",
+      "The correction must be scoped to the target case id so a separate live case retains its own email.",
+      "The correction must be owner-authorized and CSRF-protected (app.py 0072-0073, 0097-0099; store.py 0155-0156)."
+    ],
+    "assessment_limits": [
+      "Assessment is based solely on the supplied source text; no execution, database inspection or retrieval was performed.",
+      "The 'correct' branch (store.py 0172-0174) validates the email and records a 'correction' event but contains no UPDATE of cases.email, so the persisted address appears unchanged; this is a source-reading inference, not an observed runtime result.",
+      "No upstream repository or hidden implementation was consulted; conclusions are limited to the shown lines.",
+      "Legal deadlines and other GDPR articles are outside this assessment."
+    ]
+  }
+}

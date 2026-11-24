@@ -1,0 +1,49 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "c294b6d45114abfb1db9649a912f22c169205f716c57f822ca7fe031d5c90fca",
+  "seconds": 4.513,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9868,
+        "output_tokens": 734,
+        "total_tokens": 10602,
+        "input_token_details": {
+          "cache_read": 0,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "The application form and the accepted /apply payload (including what is persisted or sent onward) are limited to the fields necessary for the stated purposes: contact email (delivery), amount and term (requested offer), and income band (assessment). No field without a business purpose in this fixture (e.g., a hobby) is collected, accepted, persisted or forwarded.",
+    "applicability_facts": [
+      "Scenario: loan application submitted with email for delivery, amount and term for the requested offer, income band for assessment; a hobby has no business purpose in this fixture.",
+      "Form fields rendered for customers: email, amount, term, income, plus the 'auto' route checkbox (views.py 0031-0032).",
+      "Accepted payload is whitelisted: set(data) <= {email, amount, term, income, auto} (store.py 0067).",
+      "Persisted columns: cases(email, amount, term, income, route, ...) (store.py 0036-0038, INSERT at 0077-0078); summary title uses amount and term only (store.py 0079).",
+      "Onward payloads: offer() returns case id, email, amount, term (store.py 0111-0112); portable() returns email, amount, term, income (store.py 0114-0116); transfer stores that portable payload in receiver (store.py 0201-0203).",
+      "No hobby or other non-purpose field appears in the form, the whitelist, the schema, or the onward payloads."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "None applicable in the supplied snapshot: no additional-purpose field is justified by the fixture, and the 'auto' checkbox is a route/consent choice tied to the assessment, not an extra data field.",
+      "The rule is assessed only against the named minimization behavior; other GDPR obligations (e.g., consent validity, retention) are out of scope here."
+    ],
+    "required_controls": [
+      "Server-side allowlist of accepted application fields (store.py 0067) rejecting any unexpected field.",
+      "Form renders only purpose-relevant inputs (views.py 0031-0032).",
+      "Persistence limited to purpose-relevant columns (store.py 0036-0038, 0077-0079).",
+      "Onward payloads (offer, portable/transfer) restricted to purpose-relevant fields (store.py 0111-0116, 0201-0203).",
+      "Input validation bounding amount, term and income band (store.py 0069-0074) so only defined values are stored."
+    ],
+    "assessment_limits": [
+      "Assessment is based solely on the supplied source snapshot; no execution, repository or external retrieval was performed.",
+      "Only the named minimization behavior (form, accepted payload, persistence, onward sending) is assessed; other obligations are not evaluated.",
+      "The 'auto' checkbox is treated as a route/consent control rather than a data field; its legal sufficiency is not assessed here.",
+      "No conclusion is drawn about upstream or hidden implementation beyond the supplied files."
+    ]
+  }
+}

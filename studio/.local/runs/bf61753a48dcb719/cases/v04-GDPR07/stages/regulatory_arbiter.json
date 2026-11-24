@@ -1,0 +1,97 @@
+{
+  "stage": "regulatory_arbiter",
+  "input_hash": "bf62b03f128ba4efe16cc7c15863e70ec548008cb8eb0675ef6c298307b69b18",
+  "seconds": 6.451,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 13526,
+        "output_tokens": 1373,
+        "total_tokens": 14899,
+        "input_token_details": {
+          "cache_read": 1152,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "case_id": "case-4696c1bbcadcde52",
+    "rule_id": "GDPR07",
+    "status": "CONTRADICTED",
+    "short_explanation": "The 'correct' action validates the new email and logs a 'correction' event but never issues UPDATE cases SET email, so the corrected address is not persisted; offers read the recipient from the stored cases.email column, so after reopening the database the next offer still uses the stale address.",
+    "detailed_explanation": "Code facts: The owner-facing rectification path is reachable: views.py 0067 renders a \"Save corrected email\" form posting to /case/<id>/correct, and app.py 0097-0099 dispatches POST /case/<id>/correct to store.action(db,who,cid,\"correct\",data) with the target cid. store.action resolves the case by id and requires owner for non-staff ops (store.py 0145-0156). The 'correct' branch (store.py 0172-0174) calls email(data.get(\"email\",\"\")) — which only validates and returns the value (store.py 0060-0063) — and then inserts a \"correction\" event; it issues no UPDATE of cases.email, so the cases.email column retains the original address. Offers are produced by GET /case/<id>/offer (app.py 0100-0109) via store.offer(db,c), which builds \"to\" from c[\"email\"] (store.py 0111-0112); c comes from get_case, which re-reads the row from SQLite (store.py 0055-0058) over a fresh per-request connection committed on context exit (store.py 0022-0031). Because no email UPDATE is ever committed, a reopened database yields the original address in the next offer.\n\nRequirement: Article 16 rectification, as scoped: persist the requested correction to this case and use the corrected address in subsequent offers, including after reopening storage; a separate live case must be unaffected. The scenario supplies the trigger (borrower corrects a contact email) and the persistence/reopen condition; no exception applies, since restriction (store.py 0175-0178) pauses ordinary processing but does not exempt rectification and erase is limited to abandoned cases (store.py 0210-0212).\n\nJustification: The predicate requires both persistence of the corrected email and its use in later offers. The source shows the correction is only recorded as an event, not written to the case row, and the offer recipient is derived exclusively from that row's email column read through a fresh connection. This is a supported in-scope counterexample: an owner correction followed by an offer (even after reopening) yields the stale address, so the requirement is contradicted. Per-case scoping and owner authorization are present (store.py 0145-0156; app.py 0097-0099), so the separate live case is unaffected; that sub-condition does not rescue the verdict. No execution was performed; the conclusion rests on the visible absence of an email UPDATE in the correct branch.",
+    "evidence": [
+      {
+        "artifact": "store.py",
+        "start_line": 172,
+        "end_line": 174,
+        "role": "operation",
+        "explanation": "The 'correct' branch validates the email and inserts a 'correction' event only; no UPDATE of cases.email is issued, so the corrected address is not written to the case row."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 60,
+        "end_line": 63,
+        "role": "control",
+        "explanation": "email() only validates and returns the value; the return is discarded in the correct branch, confirming no write occurs."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 111,
+        "end_line": 112,
+        "role": "propagation",
+        "explanation": "offer() builds the recipient 'to' from c['email'], the stored case row field, so offers depend on the persisted column being updated."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 55,
+        "end_line": 58,
+        "role": "propagation",
+        "explanation": "get_case re-reads the case row from SQLite per request, so the offer path reflects only the persisted email column."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 22,
+        "end_line": 31,
+        "role": "operation",
+        "explanation": "Fresh connection per request with commit on context exit; persistence across reopening depends on an UPDATE being issued, which the correct branch does not do."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 97,
+        "end_line": 99,
+        "role": "trigger",
+        "explanation": "POST /case/<id>/correct dispatches to store.action with op='correct', scoping the request to the target case id."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 100,
+        "end_line": 109,
+        "role": "propagation",
+        "explanation": "Offer endpoint calls store.offer(db,c) and serializes the result, so the recipient derives from the stored row."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 145,
+        "end_line": 156,
+        "role": "control",
+        "explanation": "action() resolves the case by id and requires owner for non-staff ops, scoping correction to the target case and leaving other cases untouched."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 66,
+        "end_line": 67,
+        "role": "trigger",
+        "explanation": "UI exposes the 'correct' form to the owner with an email field, confirming the rectification path is reachable."
+      }
+    ],
+    "missing_information": [
+      "No UPDATE of cases.email exists in the 'correct' branch within the supplied source; the persistence step required by the predicate is absent from the visible lines.",
+      "No execution, database inspection or runtime verification was performed; the persistence gap is a source-reading inference from the shown lines.",
+      "No upstream repository or hidden implementation was consulted; conclusions are limited to the supplied artifacts."
+    ]
+  }
+}

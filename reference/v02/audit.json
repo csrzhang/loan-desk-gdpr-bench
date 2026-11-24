@@ -1,0 +1,1467 @@
+{
+  "project": "v02",
+  "source_sha256": "b85cd10acda88b7216184330b2a114cff8e991599ad1e72b3fa250050456d887",
+  "scope": "../../scope.json",
+  "records": [
+    {
+      "case_id": "v02-GDPR01",
+      "obligation_id": "GDPR01",
+      "article": "5(1)(c)",
+      "title": "Application field minimization",
+      "scenario": "Submit a loan application using email for delivery, amount and term for the requested offer, and income band for assessment. A hobby has no business purpose in this fixture.",
+      "verdict": "SUPPORTED",
+      "evidence": [
+        {
+          "path": "views.py",
+          "start_line": 31,
+          "end_line": 32,
+          "quote": "        fields=notice()+inputbox(\"Contact email\",\"email\",\"email\")+inputbox(\"Requested amount (EUR)\",\"amount\",\"number\",'min=\"100\" max=\"100000\"')+select(\"Term in months\",\"term\",[6,12,24,36])+select(\"Income band\",\"income\",[\"low\",\"medium\",\"high\"])\n        fields+='<label class=\"check\"><input type=\"checkbox\" name=\"auto\" value=\"yes\">I explicitly choose an automatic credit decision. Amounts above the income limit may be declined. I can withdraw before the decision and contest a refusal. Leave unchecked for human review on the same terms.</label>'",
+          "supports": "The collection form asks for the four business fields and an optional route choice."
+        },
+        {
+          "path": "store.py",
+          "start_line": 67,
+          "end_line": 67,
+          "quote": "    require(set(data) <= {\"email\",\"amount\",\"term\",\"income\",\"auto\"},\"Unexpected application field.\")",
+          "supports": "Submission rejects fields outside the declared input set."
+        },
+        {
+          "path": "store.py",
+          "start_line": 77,
+          "end_line": 79,
+          "quote": "    cid = db.execute(\"INSERT INTO cases(owner,officer,email,amount,term,income,route,stage) VALUES(?,?,?,?,?,?,?,?)\",\n                     (who,officer,email(data.get(\"email\",\"\")),amount,term,income,route,\"pending\")).lastrowid\n    db.execute(\"INSERT INTO summaries VALUES(?,?)\",(cid,f\"EUR {amount:,} · {term} months\"))",
+          "supports": "The stored payload and business summary select only scoped fields."
+        }
+      ],
+      "explanation": "The form takes the defined inputs. Submission validates the field set before persistence, and the indexed summary uses only amount and term. The application succeeds without the hobby; submitting it as an additional field leaves the case count at one.",
+      "runtime_evidence": {
+        "contract": "PASS",
+        "failure": null,
+        "observed": {
+          "after_extra_field": 1,
+          "eligible_application": "/case/1"
+        },
+        "test": "test_GDPR01_minimum_application_fields"
+      },
+      "evidence_review": {
+        "version": "2",
+        "unit": "source span in one frozen snapshot",
+        "routes": [
+          {
+            "name": "primary",
+            "facts": [
+              {
+                "claim": "The collection form asks for the four business fields and an optional route choice.",
+                "anchors": [
+                  {
+                    "path": "views.py",
+                    "start_line": 31,
+                    "end_line": 32
+                  }
+                ]
+              },
+              {
+                "claim": "Submission rejects fields outside the declared input set.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 67,
+                    "end_line": 67
+                  }
+                ]
+              },
+              {
+                "claim": "The stored payload and business summary select only scoped fields.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 77,
+                    "end_line": 79
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "v02-GDPR02",
+      "obligation_id": "GDPR02",
+      "article": "5(1)(b), 6(4)",
+      "title": "Purpose limitation",
+      "scenario": "An opted-in subscriber has a partner-confirmed income band for underwriting. There is no compatible marketing purpose or new legal basis for targeting with that band.",
+      "verdict": "SUPPORTED",
+      "evidence": [
+        {
+          "path": "store.py",
+          "start_line": 159,
+          "end_line": 159,
+          "quote": "        db.execute(\"UPDATE cases SET confirmed=? WHERE id=?\",(data[\"band\"],cid))",
+          "supports": "The imported confirmation is used for underwriting."
+        },
+        {
+          "path": "store.py",
+          "start_line": 131,
+          "end_line": 134,
+          "quote": "        if kind==\"score\" and c[\"route\"]==\"automatic\" and c[\"stage\"]==\"pending\":\n            band=c[\"confirmed\"] or c[\"income\"]\n            stage=\"offered\" if c[\"amount\"]<=LIMITS[band] else \"declined\"\n            db.execute(\"UPDATE cases SET stage=? WHERE id=?\",(stage,cid))",
+          "supports": "The imported confirmation is used for underwriting."
+        },
+        {
+          "path": "store.py",
+          "start_line": 102,
+          "end_line": 103,
+          "quote": "    r=db.execute(\"SELECT owner FROM cases WHERE id=? AND restricted=0 AND stage!='abandoned'\",(cid,)).fetchone()\n    return bool(r and enabled(db,r[0],\"promotions\") and not enabled(db,r[0],\"objection\"))",
+          "supports": "Campaign selection uses case eligibility and purpose-specific choices, including inside its preference helper."
+        },
+        {
+          "path": "store.py",
+          "start_line": 89,
+          "end_line": 90,
+          "quote": "    row=db.execute(\"SELECT value FROM choices WHERE owner=? AND purpose=? ORDER BY id DESC LIMIT 1\",(owner,purpose)).fetchone()\n    return bool(row and row[0])",
+          "supports": "Campaign selection uses case eligibility and purpose-specific choices, including inside its preference helper."
+        },
+        {
+          "path": "store.py",
+          "start_line": 107,
+          "end_line": 109,
+          "quote": "    for row in db.execute(\"SELECT id FROM cases WHERE officer=?\",(who,)):\n        if eligible_campaign(db,row[0]):\n            queue(db,row[0],\"promotion\")",
+          "supports": "Campaign selection uses case eligibility and purpose-specific choices, including inside its preference helper."
+        },
+        {
+          "path": "store.py",
+          "start_line": 140,
+          "end_line": 141,
+          "quote": "        elif kind==\"promotion\" and eligible_campaign(db,cid):\n            event(db,cid,\"promotion\",\"A new loan offer is available.\")",
+          "supports": "The actual promotion delivery uses that selection and contains no underwriting field."
+        }
+      ],
+      "explanation": "Income confirmation changes the EUR 9,000 decision from the declared high-band outcome to a low-band refusal. Audience selection reads owner, case eligibility and preferences. SQLite read tracing during campaign selection confirms that declared and verified income do not enter that selection. The eligible promotion is still delivered.",
+      "runtime_evidence": {
+        "contract": "PASS",
+        "failure": null,
+        "observed": {
+          "decisions": [
+            "Automatic declined. Amount 9000 compared with low limit 5000."
+          ],
+          "promotions": 1
+        },
+        "test": "test_GDPR02_underwriting_and_campaign_inputs"
+      },
+      "evidence_review": {
+        "version": "2",
+        "unit": "source span in one frozen snapshot",
+        "routes": [
+          {
+            "name": "primary",
+            "facts": [
+              {
+                "claim": "The imported confirmation is used for underwriting.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 159,
+                    "end_line": 159
+                  },
+                  {
+                    "path": "store.py",
+                    "start_line": 131,
+                    "end_line": 134
+                  }
+                ]
+              },
+              {
+                "claim": "Campaign selection uses case eligibility and purpose-specific choices, including inside its preference helper.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 102,
+                    "end_line": 103
+                  },
+                  {
+                    "path": "store.py",
+                    "start_line": 89,
+                    "end_line": 90
+                  },
+                  {
+                    "path": "store.py",
+                    "start_line": 107,
+                    "end_line": 109
+                  }
+                ]
+              },
+              {
+                "claim": "The actual promotion delivery uses that selection and contains no underwriting field.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 140,
+                    "end_line": 141
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "v02-GDPR03",
+      "obligation_id": "GDPR03",
+      "article": "6(1)(a), 7(1), 7(2), 7(4)",
+      "title": "Purpose-specific opt-in",
+      "scenario": "An adult uses the core application with optional repayment insights initially off. Marketing permission does not authorize private insights.",
+      "verdict": "SUPPORTED",
+      "evidence": [
+        {
+          "path": "views.py",
+          "start_line": 33,
+          "end_line": 36,
+          "quote": "        body+='<div class=\"grid\"><section><h2>New application</h2>'+form(\"/apply\",t,\"Submit application\",fields)+'</section><section><h2>Privacy choices</h2><p>Insights create a private repayment estimate. Promotions send loan offers. Both are optional. Withdraw at any time here. An objection stops all direct marketing.</p>'\n        for key,label in ((\"insights\",\"Repayment insights\"),(\"promotions\",\"Loan promotions\"),(\"objection\",\"Marketing objection\")):\n            on=enabled(db,who,key)\n            body+=f'<div class=\"pref\"><b>{label}</b><span>{\"On\" if on else \"Off\"}</span>'+form(\"/preference\",t,\"Switch off\" if on else \"Switch on\",f'<input type=\"hidden\" name=\"purpose\" value=\"{key}\"><input type=\"hidden\" name=\"value\" value=\"{\"off\" if on else \"on\"}\">', \"quiet\")+'</div>'",
+          "supports": "Core submission is separate from the optional, purpose-specific positive choice."
+        },
+        {
+          "path": "store.py",
+          "start_line": 67,
+          "end_line": 67,
+          "quote": "    require(set(data) <= {\"email\",\"amount\",\"term\",\"income\",\"auto\"},\"Unexpected application field.\")",
+          "supports": "Core submission is separate from the optional, purpose-specific positive choice."
+        },
+        {
+          "path": "store.py",
+          "start_line": 89,
+          "end_line": 90,
+          "quote": "    row=db.execute(\"SELECT value FROM choices WHERE owner=? AND purpose=? ORDER BY id DESC LIMIT 1\",(owner,purpose)).fetchone()\n    return bool(row and row[0])",
+          "supports": "Absence defaults to off; an affirmative versioned choice is recorded by owner and purpose."
+        },
+        {
+          "path": "store.py",
+          "start_line": 94,
+          "end_line": 95,
+          "quote": "    db.execute(\"INSERT INTO choices(owner,purpose,value,version,at) VALUES(?,?,?,?,?)\",\n               (who,purpose,int(value==\"on\"),VERSION,datetime.now(timezone.utc).isoformat()))",
+          "supports": "Absence defaults to off; an affirmative versioned choice is recorded by owner and purpose."
+        },
+        {
+          "path": "store.py",
+          "start_line": 167,
+          "end_line": 168,
+          "quote": "        if op==\"report\":\n            require(enabled(db,who,\"insights\"),\"Enable optional insights first.\",409)",
+          "supports": "Requesting a report requires current insights permission, and a queued report produces an actual output."
+        },
+        {
+          "path": "store.py",
+          "start_line": 171,
+          "end_line": 171,
+          "quote": "        queue(db,cid,op)",
+          "supports": "Requesting a report requires current insights permission, and a queued report produces an actual output."
+        },
+        {
+          "path": "store.py",
+          "start_line": 137,
+          "end_line": 138,
+          "quote": "        elif kind==\"report\" and enabled(db,c[\"owner\"],\"insights\") and c[\"stage\"]!=\"abandoned\":\n            event(db,cid,\"report\",f\"Monthly principal estimate: EUR {c['amount']/c['term']:.2f}.\")",
+          "supports": "Requesting a report requires current insights permission, and a queued report produces an actual output."
+        }
+      ],
+      "explanation": "The core loan can be submitted independently. The insights choice is separately presented and recorded with a version. The report entry point rejects an absent insights choice even when promotions are enabled. A later affirmative choice makes a report possible.",
+      "runtime_evidence": {
+        "contract": "PASS",
+        "failure": null,
+        "observed": {
+          "after_opt_in": 1,
+          "before_opt_in": 0,
+          "choice_version": "2026-11-v1"
+        },
+        "test": "test_GDPR03_specific_optional_choice"
+      },
+      "evidence_review": {
+        "version": "2",
+        "unit": "source span in one frozen snapshot",
+        "routes": [
+          {
+            "name": "primary",
+            "facts": [
+              {
+                "claim": "Core submission is separate from the optional, purpose-specific positive choice.",
+                "anchors": [
+                  {
+                    "path": "views.py",
+                    "start_line": 33,
+                    "end_line": 36
+                  },
+                  {
+                    "path": "store.py",
+                    "start_line": 67,
+                    "end_line": 67
+                  }
+                ]
+              },
+              {
+                "claim": "Absence defaults to off; an affirmative versioned choice is recorded by owner and purpose.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 89,
+                    "end_line": 90
+                  },
+                  {
+                    "path": "store.py",
+                    "start_line": 94,
+                    "end_line": 95
+                  }
+                ]
+              },
+              {
+                "claim": "Requesting a report requires current insights permission, and a queued report produces an actual output.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 167,
+                    "end_line": 168
+                  },
+                  {
+                    "path": "store.py",
+                    "start_line": 171,
+                    "end_line": 171
+                  },
+                  {
+                    "path": "store.py",
+                    "start_line": 137,
+                    "end_line": 138
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "v02-GDPR04",
+      "obligation_id": "GDPR04",
+      "article": "7(3)",
+      "title": "Withdrawal before execution",
+      "scenario": "Two borrowers opt in and queue reports. One withdraws before execution. The queue is reopened and drained twice; the other borrower remains eligible.",
+      "verdict": "SUPPORTED",
+      "evidence": [
+        {
+          "path": "views.py",
+          "start_line": 33,
+          "end_line": 36,
+          "quote": "        body+='<div class=\"grid\"><section><h2>New application</h2>'+form(\"/apply\",t,\"Submit application\",fields)+'</section><section><h2>Privacy choices</h2><p>Insights create a private repayment estimate. Promotions send loan offers. Both are optional. Withdraw at any time here. An objection stops all direct marketing.</p>'\n        for key,label in ((\"insights\",\"Repayment insights\"),(\"promotions\",\"Loan promotions\"),(\"objection\",\"Marketing objection\")):\n            on=enabled(db,who,key)\n            body+=f'<div class=\"pref\"><b>{label}</b><span>{\"On\" if on else \"Off\"}</span>'+form(\"/preference\",t,\"Switch off\" if on else \"Switch on\",f'<input type=\"hidden\" name=\"purpose\" value=\"{key}\"><input type=\"hidden\" name=\"value\" value=\"{\"off\" if on else \"on\"}\">', \"quiet\")+'</div>'",
+          "supports": "The borrower is told how to withdraw and can use the same control as for enabling the purpose."
+        },
+        {
+          "path": "store.py",
+          "start_line": 94,
+          "end_line": 95,
+          "quote": "    db.execute(\"INSERT INTO choices(owner,purpose,value,version,at) VALUES(?,?,?,?,?)\",\n               (who,purpose,int(value==\"on\"),VERSION,datetime.now(timezone.utc).isoformat()))",
+          "supports": "Withdrawal records the new purpose-specific state."
+        },
+        {
+          "path": "store.py",
+          "start_line": 89,
+          "end_line": 90,
+          "quote": "    row=db.execute(\"SELECT value FROM choices WHERE owner=? AND purpose=? ORDER BY id DESC LIMIT 1\",(owner,purpose)).fetchone()\n    return bool(row and row[0])",
+          "supports": "The worker reads the latest choice for that owner and purpose before producing a new report."
+        },
+        {
+          "path": "store.py",
+          "start_line": 137,
+          "end_line": 138,
+          "quote": "        elif kind==\"report\" and enabled(db,c[\"owner\"],\"insights\") and c[\"stage\"]!=\"abandoned\":\n            event(db,cid,\"report\",f\"Monthly principal estimate: EUR {c['amount']/c['term']:.2f}.\")",
+          "supports": "The worker reads the latest choice for that owner and purpose before producing a new report."
+        },
+        {
+          "path": "store.py",
+          "start_line": 126,
+          "end_line": 126,
+          "quote": "    for job in rows(db,\"SELECT * FROM jobs WHERE cid=? AND state='queued' ORDER BY id\",(cid,)):",
+          "supports": "The eligible control receives one report across two drains because only queued jobs run and completed work is marked done."
+        },
+        {
+          "path": "store.py",
+          "start_line": 139,
+          "end_line": 139,
+          "quote": "            state=\"done\"",
+          "supports": "The eligible control receives one report across two drains because only queued jobs run and completed work is marked done."
+        },
+        {
+          "path": "store.py",
+          "start_line": 143,
+          "end_line": 143,
+          "quote": "        db.execute(\"UPDATE jobs SET state=? WHERE id=?\",(state,job[\"id\"]))",
+          "supports": "The eligible control receives one report across two drains because only queued jobs run and completed work is marked done."
+        }
+      ],
+      "explanation": "The same preference control enables and withdraws consent. Withdrawal records the current choice and cancels pending reports. Delivery also checks current authorization. After restart and replay the withdrawing borrower has zero reports and the control borrower has one.",
+      "runtime_evidence": {
+        "contract": "PASS",
+        "failure": null,
+        "observed": {
+          "control_reports": 1,
+          "withdrawn_job": "cancelled",
+          "withdrawn_reports": 0
+        },
+        "test": "test_GDPR04_withdraw_after_enqueue_and_retry"
+      },
+      "evidence_review": {
+        "version": "2",
+        "unit": "source span in one frozen snapshot",
+        "routes": [
+          {
+            "name": "current-permission-at-delivery",
+            "facts": [
+              {
+                "claim": "The borrower is told how to withdraw and can use the same control as for enabling the purpose.",
+                "anchors": [
+                  {
+                    "path": "views.py",
+                    "start_line": 33,
+                    "end_line": 36
+                  }
+                ]
+              },
+              {
+                "claim": "Withdrawal records the new purpose-specific state.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 94,
+                    "end_line": 95
+                  }
+                ]
+              },
+              {
+                "claim": "The worker reads the latest choice for that owner and purpose before producing a new report.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 89,
+                    "end_line": 90
+                  },
+                  {
+                    "path": "store.py",
+                    "start_line": 137,
+                    "end_line": 138
+                  }
+                ]
+              },
+              {
+                "claim": "The eligible control receives one report across two drains because only queued jobs run and completed work is marked done.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 126,
+                    "end_line": 126
+                  },
+                  {
+                    "path": "store.py",
+                    "start_line": 139,
+                    "end_line": 139
+                  },
+                  {
+                    "path": "store.py",
+                    "start_line": 143,
+                    "end_line": 143
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "cancel-pending-reports",
+            "facts": [
+              {
+                "claim": "The borrower is told how to withdraw and can use the same control as for enabling the purpose.",
+                "anchors": [
+                  {
+                    "path": "views.py",
+                    "start_line": 33,
+                    "end_line": 36
+                  }
+                ]
+              },
+              {
+                "claim": "Withdrawal cancels that owner’s pending insights jobs.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 96,
+                    "end_line": 98
+                  }
+                ]
+              },
+              {
+                "claim": "Only queued jobs reach report creation; an authorized control is processed once across drains.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 126,
+                    "end_line": 126
+                  },
+                  {
+                    "path": "store.py",
+                    "start_line": 137,
+                    "end_line": 139
+                  },
+                  {
+                    "path": "store.py",
+                    "start_line": 143,
+                    "end_line": 143
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "v02-GDPR05",
+      "obligation_id": "GDPR05",
+      "article": "12(1), 13(1)–(2), 14(1)–(3)",
+      "title": "Notice at collection and partner import",
+      "scenario": "Direct application plus a synthetic Income Registry import. No prior outward disclosure or Art. 14(5) exception. The applicant may open the case immediately or leave it unopened.",
+      "verdict": "SUPPORTED",
+      "evidence": [
+        {
+          "path": "store.py",
+          "start_line": 9,
+          "end_line": 9,
+          "quote": "NOTICE = \"\"\"Loan Desk Research (controller), privacy@loandesk.example, processes contact email, amount, term and income band to handle your requested application and contract. Your assigned officer may consult a synthetic Income Registry confirmation for underwriting only. The optional automatic route uses your separate explicit consent: amounts above the income-band limit are declined, which closes this application. The low, medium and high limits are EUR 5,000, 15,000 and 30,000. Manual review has the same terms and access. You can withdraw before decision, give your view, contest a decline and obtain human review. Repayment insights and promotions each require a separate optional consent. Switch either off at any time as easily as switching it on. You may object to all direct marketing. Withdrawal applies to future processing. Only authorized case staff and you can view your file. On request a local receiving controller can receive your portable fields. No international transfer is modeled. Active cases are retained for handling and servicing; an abandoned case with no remaining retention ground can be erased. Account choices remain for preference handling. You can access, correct, restrict, erase or port eligible data here, contact the controller, or complain to your EU supervisory authority. Required application fields enable assessment and delivery of your offer; without them we cannot process the application.\"\"\"",
+          "supports": "The shared notice supplies the information for the scoped direct and indirect collection."
+        },
+        {
+          "path": "views.py",
+          "start_line": 24,
+          "end_line": 25,
+          "quote": "def notice():\n    return '<details><summary>How we use your information</summary><p>'+h(NOTICE)+'</p></details>'",
+          "supports": "The notice is rendered at direct collection before the inputs."
+        },
+        {
+          "path": "views.py",
+          "start_line": 31,
+          "end_line": 31,
+          "quote": "        fields=notice()+inputbox(\"Contact email\",\"email\",\"email\")+inputbox(\"Requested amount (EUR)\",\"amount\",\"number\",'min=\"100\" max=\"100000\"')+select(\"Term in months\",\"term\",[6,12,24,36])+select(\"Income band\",\"income\",[\"low\",\"medium\",\"high\"])",
+          "supports": "The notice is rendered at direct collection before the inputs."
+        },
+        {
+          "path": "store.py",
+          "start_line": 157,
+          "end_line": 160,
+          "quote": "    if op==\"verify\":\n        require(stage==\"pending\" and not c[\"restricted\"] and data.get(\"band\") in LIMITS,\"Pending unrestricted case required.\")\n        db.execute(\"UPDATE cases SET confirmed=? WHERE id=?\",(data[\"band\"],cid))\n        event(db,cid,\"partner notice\",f\"Income Registry supplied income band {data['band']} today for underwriting. \"+NOTICE)",
+          "supports": "Import records a source-specific notice with the confirmed value immediately."
+        },
+        {
+          "path": "views.py",
+          "start_line": 76,
+          "end_line": 76,
+          "quote": "    log=''.join(f'<li><small>{h(e[\"at\"][:19])} UTC · {h(e[\"kind\"])}</small><p>{h(e[\"body\"])}</p></li>' for e in reversed(events))",
+          "supports": "The notice event is available through the case inbox."
+        },
+        {
+          "path": "views.py",
+          "start_line": 79,
+          "end_line": 79,
+          "quote": "    body+='</div><section><h2>Processing queue</h2>'+worker+'</section><section><h2>Case inbox &amp; history</h2><ol>'+log+'</ol></section>'",
+          "supports": "The notice event is available through the case inbox."
+        }
+      ],
+      "explanation": "The loan form exposes the processing notice before data entry. Import writes a source-specific notice to the case inbox in the same transaction as the confirmed band. The notice exists at import in both tested timelines, including when there is no later visit. The timing finding uses immediate local inbox delivery.",
+      "runtime_evidence": {
+        "contract": "PASS",
+        "failure": null,
+        "observed": {
+          "direct_notice_before_input": true,
+          "source_named": true
+        },
+        "test": "test_GDPR05_direct_and_indirect_notice"
+      },
+      "evidence_review": {
+        "version": "2",
+        "unit": "source span in one frozen snapshot",
+        "routes": [
+          {
+            "name": "primary",
+            "facts": [
+              {
+                "claim": "The shared notice supplies the information for the scoped direct and indirect collection.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 9,
+                    "end_line": 9
+                  }
+                ]
+              },
+              {
+                "claim": "The notice is rendered at direct collection before the inputs.",
+                "anchors": [
+                  {
+                    "path": "views.py",
+                    "start_line": 24,
+                    "end_line": 25
+                  },
+                  {
+                    "path": "views.py",
+                    "start_line": 31,
+                    "end_line": 31
+                  }
+                ]
+              },
+              {
+                "claim": "Import records a source-specific notice with the confirmed value immediately.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 157,
+                    "end_line": 160
+                  }
+                ]
+              },
+              {
+                "claim": "The notice event is available through the case inbox.",
+                "anchors": [
+                  {
+                    "path": "views.py",
+                    "start_line": 76,
+                    "end_line": 76
+                  },
+                  {
+                    "path": "views.py",
+                    "start_line": 79,
+                    "end_line": 79
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "v02-GDPR06",
+      "obligation_id": "GDPR06",
+      "article": "15(1), 15(3), 15(4)",
+      "title": "Subject access copy",
+      "scenario": "The authenticated applicant requests the copy of one specified case, including derived decision, source, linked activities and processing information. Another applicant has separate data.",
+      "verdict": "SUPPORTED",
+      "evidence": [
+        {
+          "path": "store.py",
+          "start_line": 55,
+          "end_line": 58,
+          "quote": "def get_case(db, who, cid):\n    row = db.execute(\"SELECT * FROM cases WHERE id=? AND (owner=? OR officer=?)\",(cid,who,who)).fetchone()\n    require(row, \"Case unavailable.\", 404)\n    return dict(row)",
+          "supports": "The access endpoint binds the authenticated subject to the requested case and selects the personal access response."
+        },
+        {
+          "path": "app.py",
+          "start_line": 94,
+          "end_line": 95,
+          "quote": "                        cid=int(route[1])\n                        c=store.get_case(db,who,cid)",
+          "supports": "The access endpoint binds the authenticated subject to the requested case and selects the personal access response."
+        },
+        {
+          "path": "app.py",
+          "start_line": 105,
+          "end_line": 106,
+          "quote": "                                require(who==c[\"owner\"],\"Borrower required.\",403)\n                                item=store.access(db,c) if op==\"access\" else store.portable(c)",
+          "supports": "The access endpoint binds the authenticated subject to the requested case and selects the personal access response."
+        },
+        {
+          "path": "store.py",
+          "start_line": 9,
+          "end_line": 9,
+          "quote": "NOTICE = \"\"\"Loan Desk Research (controller), privacy@loandesk.example, processes contact email, amount, term and income band to handle your requested application and contract. Your assigned officer may consult a synthetic Income Registry confirmation for underwriting only. The optional automatic route uses your separate explicit consent: amounts above the income-band limit are declined, which closes this application. The low, medium and high limits are EUR 5,000, 15,000 and 30,000. Manual review has the same terms and access. You can withdraw before decision, give your view, contest a decline and obtain human review. Repayment insights and promotions each require a separate optional consent. Switch either off at any time as easily as switching it on. You may object to all direct marketing. Withdrawal applies to future processing. Only authorized case staff and you can view your file. On request a local receiving controller can receive your portable fields. No international transfer is modeled. Active cases are retained for handling and servicing; an abandoned case with no remaining retention ground can be erased. Account choices remain for preference handling. You can access, correct, restrict, erase or port eligible data here, contact the controller, or complain to your EU supervisory authority. Required application fields enable assessment and delivery of your offer; without them we cannot process the application.\"\"\"",
+          "supports": "The response supplies the case and processing information, with case-scoped events/jobs and owner-scoped choices."
+        },
+        {
+          "path": "store.py",
+          "start_line": 119,
+          "end_line": 122,
+          "quote": "    cid=c[\"id\"]\n    return {\"application\":c,\"processing_information\":NOTICE,\"timeline\":rows(db,\"SELECT kind,body,at FROM events WHERE cid=? ORDER BY id\",(cid,)),\n            \"jobs\":rows(db,\"SELECT kind,state FROM jobs WHERE cid=? ORDER BY id\",(cid,)),\n            \"preferences\":rows(db,\"SELECT purpose,value,version,at FROM choices WHERE owner=? ORDER BY id\",(c[\"owner\"],))}",
+          "supports": "The response supplies the case and processing information, with case-scoped events/jobs and owner-scoped choices."
+        },
+        {
+          "path": "store.py",
+          "start_line": 160,
+          "end_line": 160,
+          "quote": "        event(db,cid,\"partner notice\",f\"Income Registry supplied income band {data['band']} today for underwriting. \"+NOTICE)",
+          "supports": "The event stream actually contains the indirect source and the derived decision."
+        },
+        {
+          "path": "store.py",
+          "start_line": 135,
+          "end_line": 135,
+          "quote": "            event(db,cid,\"decision\",f\"Automatic {stage}. Amount {c['amount']} compared with {band} limit {LIMITS[band]}.\")",
+          "supports": "The event stream actually contains the indirect source and the derived decision."
+        }
+      ],
+      "explanation": "The route scopes the case and the download to its owner. The response contains the case, processing information, source-import and decision events, jobs and that owner’s preference history. The control customer cannot obtain the same case copy.",
+      "runtime_evidence": {
+        "contract": "PASS",
+        "failure": null,
+        "observed": {
+          "confirmed_income": "low",
+          "copy_sections": [
+            "application",
+            "jobs",
+            "preferences",
+            "processing_information",
+            "timeline"
+          ],
+          "event_kinds": [
+            "application",
+            "partner notice",
+            "decision"
+          ]
+        },
+        "test": "test_GDPR06_access_inventory_and_owner"
+      },
+      "evidence_review": {
+        "version": "2",
+        "unit": "source span in one frozen snapshot",
+        "routes": [
+          {
+            "name": "primary",
+            "facts": [
+              {
+                "claim": "The access endpoint binds the authenticated subject to the requested case and selects the personal access response.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 55,
+                    "end_line": 58
+                  },
+                  {
+                    "path": "app.py",
+                    "start_line": 94,
+                    "end_line": 95
+                  },
+                  {
+                    "path": "app.py",
+                    "start_line": 105,
+                    "end_line": 106
+                  }
+                ]
+              },
+              {
+                "claim": "The response supplies the case and processing information, with case-scoped events/jobs and owner-scoped choices.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 9,
+                    "end_line": 9
+                  },
+                  {
+                    "path": "store.py",
+                    "start_line": 119,
+                    "end_line": 122
+                  }
+                ]
+              },
+              {
+                "claim": "The event stream actually contains the indirect source and the derived decision.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 160,
+                    "end_line": 160
+                  },
+                  {
+                    "path": "store.py",
+                    "start_line": 135,
+                    "end_line": 135
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "v02-GDPR07",
+      "obligation_id": "GDPR07",
+      "article": "16",
+      "title": "Rectification and subsequent use",
+      "scenario": "The borrower corrects a contact email. After reopening the database the next offer must use the corrected address. A separate live case is unaffected.",
+      "verdict": "CONTRADICTED",
+      "evidence": [
+        {
+          "path": "store.py",
+          "start_line": 172,
+          "end_line": 174,
+          "quote": "    elif op==\"correct\":\n        email(data.get(\"email\",\"\"))\n        event(db,cid,\"correction\",\"Contact email updated.\")",
+          "supports": "The complete correction branch validates and discards the proposed address, acknowledges success, and never persists the correction. The validation helper returns the supplied string without writing it."
+        },
+        {
+          "path": "store.py",
+          "start_line": 60,
+          "end_line": 63,
+          "quote": "def email(value):\n    import re\n    require(re.fullmatch(r\"[^@\\s]+@[^@\\s]+\\.[^@\\s]+\",value) and len(value)<=254,\"Enter a contact email.\")\n    return value",
+          "supports": "The complete correction branch validates and discards the proposed address, acknowledges success, and never persists the correction. The validation helper returns the supplied string without writing it."
+        }
+      ],
+      "explanation": "The handler validates the proposed email and records “Contact email updated.” It discards the validated value. On restart the case still contains person@example.test, and the newly downloaded offer uses that address instead of the requested new@example.test.",
+      "runtime_evidence": {
+        "contract": "FAIL",
+        "failure": "",
+        "observed": {
+          "next_offer": "person@example.test",
+          "original": "person@example.test",
+          "receipt": [
+            "Contact email updated."
+          ],
+          "requested": "new@example.test",
+          "stored": "person@example.test"
+        },
+        "test": "test_GDPR07_correct_and_regenerate_offer"
+      },
+      "evidence_review": {
+        "version": "2",
+        "unit": "source span in one frozen snapshot",
+        "routes": [
+          {
+            "name": "primary",
+            "facts": [
+              {
+                "claim": "The complete correction branch validates and discards the proposed address, acknowledges success, and never persists the correction. The validation helper returns the supplied string without writing it.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 172,
+                    "end_line": 174
+                  },
+                  {
+                    "path": "store.py",
+                    "start_line": 60,
+                    "end_line": 63
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "v02-GDPR08",
+      "obligation_id": "GDPR08",
+      "article": "17(1)(a), 17(3)",
+      "title": "Erasure of an abandoned case",
+      "scenario": "An abandoned application is no longer necessary. There is no mandatory retention, prior external disclosure or other exception in this fixture. An active case remains necessary.",
+      "verdict": "SUPPORTED",
+      "evidence": [
+        {
+          "path": "store.py",
+          "start_line": 210,
+          "end_line": 212,
+          "quote": "    elif op==\"erase\":\n        require(stage==\"abandoned\",\"Only abandoned applications qualify in this scenario.\",409)\n        db.execute(\"DELETE FROM cases WHERE id=?\",(cid,))",
+          "supports": "Only an abandoned case is eligible and its primary row is deleted."
+        },
+        {
+          "path": "store.py",
+          "start_line": 26,
+          "end_line": 26,
+          "quote": "    db.execute(\"PRAGMA foreign_keys=ON\")",
+          "supports": "Deleting the parent actually cascades to all three required internal copies, including the pending job."
+        },
+        {
+          "path": "store.py",
+          "start_line": 39,
+          "end_line": 41,
+          "quote": "        CREATE TABLE IF NOT EXISTS summaries(cid INTEGER PRIMARY KEY REFERENCES cases ON DELETE CASCADE, title TEXT);\n        CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY, cid INTEGER REFERENCES cases ON DELETE CASCADE,\n          kind TEXT, body TEXT, at TEXT);",
+          "supports": "Deleting the parent actually cascades to all three required internal copies, including the pending job."
+        },
+        {
+          "path": "store.py",
+          "start_line": 43,
+          "end_line": 44,
+          "quote": "        CREATE TABLE IF NOT EXISTS jobs(id INTEGER PRIMARY KEY AUTOINCREMENT, cid INTEGER REFERENCES cases ON DELETE CASCADE,\n          kind TEXT, state TEXT DEFAULT 'queued');",
+          "supports": "Deleting the parent actually cascades to all three required internal copies, including the pending job."
+        }
+      ],
+      "explanation": "The stage guard admits the abandoned case. Foreign-key enforcement cascades deletion to its summary, events and jobs. After restart all four row counts are zero, the old job cannot run, and the other case remains available.",
+      "runtime_evidence": {
+        "contract": "PASS",
+        "failure": null,
+        "observed": {
+          "active_visible": true,
+          "rows_after_restart": {
+            "cases": 0,
+            "events": 0,
+            "jobs": 0,
+            "summaries": 0
+          }
+        },
+        "test": "test_GDPR08_erase_main_copies_jobs_and_replay"
+      },
+      "evidence_review": {
+        "version": "2",
+        "unit": "source span in one frozen snapshot",
+        "routes": [
+          {
+            "name": "primary",
+            "facts": [
+              {
+                "claim": "Only an abandoned case is eligible and its primary row is deleted.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 210,
+                    "end_line": 212
+                  }
+                ]
+              },
+              {
+                "claim": "Deleting the parent actually cascades to all three required internal copies, including the pending job.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 26,
+                    "end_line": 26
+                  },
+                  {
+                    "path": "store.py",
+                    "start_line": 39,
+                    "end_line": 41
+                  },
+                  {
+                    "path": "store.py",
+                    "start_line": 43,
+                    "end_line": 44
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "v02-GDPR09",
+      "obligation_id": "GDPR09",
+      "article": "18(1)(a), 18(2), 18(3)",
+      "title": "Restrict ordinary use of disputed data",
+      "scenario": "Accuracy of the partner income band is disputed before a queued score runs. The record is retained for verification. None of the exceptions for ordinary scoring applies.",
+      "verdict": "SUPPORTED",
+      "evidence": [
+        {
+          "path": "store.py",
+          "start_line": 175,
+          "end_line": 178,
+          "quote": "    elif op==\"restrict\":\n        require(stage!=\"abandoned\" and not c[\"restricted\"],\"Select an unrestricted live case.\")\n        db.execute(\"UPDATE cases SET restricted=1 WHERE id=?\",(cid,))\n        event(db,cid,\"dispute\",\"Accuracy disputed. Ordinary processing paused.\")",
+          "supports": "A dispute sets a restriction flag without removing the record."
+        },
+        {
+          "path": "store.py",
+          "start_line": 126,
+          "end_line": 129,
+          "quote": "    for job in rows(db,\"SELECT * FROM jobs WHERE cid=? AND state='queued' ORDER BY id\",(cid,)):\n        if c[\"restricted\"]:\n            continue\n        kind=job[\"kind\"]",
+          "supports": "Pending tasks retain their queued state while restricted; when allowed, scoring uses the verified band."
+        },
+        {
+          "path": "store.py",
+          "start_line": 131,
+          "end_line": 135,
+          "quote": "        if kind==\"score\" and c[\"route\"]==\"automatic\" and c[\"stage\"]==\"pending\":\n            band=c[\"confirmed\"] or c[\"income\"]\n            stage=\"offered\" if c[\"amount\"]<=LIMITS[band] else \"declined\"\n            db.execute(\"UPDATE cases SET stage=? WHERE id=?\",(stage,cid))\n            event(db,cid,\"decision\",f\"Automatic {stage}. Amount {c['amount']} compared with {band} limit {LIMITS[band]}.\")",
+          "supports": "Pending tasks retain their queued state while restricted; when allowed, scoring uses the verified band."
+        },
+        {
+          "path": "store.py",
+          "start_line": 179,
+          "end_line": 185,
+          "quote": "    elif op==\"notify-release\":\n        require(c[\"restricted\"]==1 and data.get(\"reason\",\"\").strip() and data.get(\"band\") in LIMITS,\"Record verified band and finding.\")\n        db.execute(\"UPDATE cases SET restricted=2,confirmed=? WHERE id=?\",(data[\"band\"],cid))\n        event(db,cid,\"release notice\",\"Verification completed. Processing will resume. \"+data[\"reason\"])\n    elif op==\"release\":\n        require(c[\"restricted\"]==2,\"Notify the applicant before lifting the restriction.\",409)\n        db.execute(\"UPDATE cases SET restricted=0 WHERE id=?\",(cid,))",
+          "supports": "Notice precedes lifting the restriction and the verified value is retained."
+        }
+      ],
+      "explanation": "The dispute sets a restriction while preserving the data. The worker defers ordinary scoring both during verification and after advance notice. Release needs a preceding notification. Only after release does the score run using the verified band.",
+      "runtime_evidence": {
+        "contract": "PASS",
+        "failure": null,
+        "observed": {
+          "decision_events": [],
+          "disputed_band": "low",
+          "effective_stage": "pending",
+          "restriction": 1
+        },
+        "test": "test_GDPR09_dispute_pause_notify_then_resume"
+      },
+      "evidence_review": {
+        "version": "2",
+        "unit": "source span in one frozen snapshot",
+        "routes": [
+          {
+            "name": "primary",
+            "facts": [
+              {
+                "claim": "A dispute sets a restriction flag without removing the record.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 175,
+                    "end_line": 178
+                  }
+                ]
+              },
+              {
+                "claim": "Pending tasks retain their queued state while restricted; when allowed, scoring uses the verified band.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 126,
+                    "end_line": 129
+                  },
+                  {
+                    "path": "store.py",
+                    "start_line": 131,
+                    "end_line": 135
+                  }
+                ]
+              },
+              {
+                "claim": "Notice precedes lifting the restriction and the verified value is retained.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 179,
+                    "end_line": 185
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "v02-GDPR10",
+      "obligation_id": "GDPR10",
+      "article": "20(1)(a)–(b), 20(2), 20(4)",
+      "title": "Portable contract fields",
+      "scenario": "Automated processing of a current contract. The borrower supplied email, amount, term and income. They download those fields and request direct transfer to the feasible local receiver.",
+      "verdict": "SUPPORTED",
+      "evidence": [
+        {
+          "path": "store.py",
+          "start_line": 114,
+          "end_line": 116,
+          "quote": "def portable(c):\n    require(c[\"stage\"]==\"accepted\",\"Accept an offer to export this contract.\",409)\n    return {k:c[k] for k in (\"email\",\"amount\",\"term\",\"income\")}",
+          "supports": "The contract projection selects exactly the four subject-provided fields."
+        },
+        {
+          "path": "app.py",
+          "start_line": 104,
+          "end_line": 109,
+          "quote": "                            else:\n                                require(who==c[\"owner\"],\"Borrower required.\",403)\n                                item=store.access(db,c) if op==\"access\" else store.portable(c)\n                            mime=\"application/json\"\n                            headers.append((\"Content-Disposition\",f'attachment; filename=\"loan-{cid}-{op}.json\"'))\n                            body=json.dumps(item,indent=2)",
+          "supports": "The subject receives this projection through the structured download."
+        },
+        {
+          "path": "store.py",
+          "start_line": 201,
+          "end_line": 203,
+          "quote": "    elif op==\"transfer\":\n        require(data.get(\"destination\")==\"Local Credit Union\",\"Select the receiving controller.\")\n        db.execute(\"INSERT INTO receiver(owner,payload) VALUES(?,?)\",(who,json.dumps(portable(c))))",
+          "supports": "The requested transfer delivers the same projection to the designated receiver."
+        }
+      ],
+      "explanation": "The accepted-contract projection includes all four subject-provided fields and excludes inferred decisions. Download and requested transfer use the same projection. Both received JSON objects contain the original 12-month term and the other three values.",
+      "runtime_evidence": {
+        "contract": "PASS",
+        "failure": null,
+        "observed": {
+          "download": {
+            "amount": 9000,
+            "email": "person@example.test",
+            "income": "medium",
+            "term": 12
+          },
+          "provided_term": 12,
+          "received": {
+            "amount": 9000,
+            "email": "person@example.test",
+            "income": "medium",
+            "term": 12
+          }
+        },
+        "test": "test_GDPR10_portable_contract_and_receiver"
+      },
+      "evidence_review": {
+        "version": "2",
+        "unit": "source span in one frozen snapshot",
+        "routes": [
+          {
+            "name": "primary",
+            "facts": [
+              {
+                "claim": "The contract projection selects exactly the four subject-provided fields.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 114,
+                    "end_line": 116
+                  }
+                ]
+              },
+              {
+                "claim": "The subject receives this projection through the structured download.",
+                "anchors": [
+                  {
+                    "path": "app.py",
+                    "start_line": 104,
+                    "end_line": 109
+                  }
+                ]
+              },
+              {
+                "claim": "The requested transfer delivers the same projection to the designated receiver.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 201,
+                    "end_line": 203
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "v02-GDPR11",
+      "obligation_id": "GDPR11",
+      "article": "21(2)–(3)",
+      "title": "Objection to direct marketing",
+      "scenario": "A borrower with active marketing permission objects after a campaign is queued. Another subscribed borrower has no objection. Service decisions remain necessary.",
+      "verdict": "SUPPORTED",
+      "evidence": [
+        {
+          "path": "store.py",
+          "start_line": 94,
+          "end_line": 95,
+          "quote": "    db.execute(\"INSERT INTO choices(owner,purpose,value,version,at) VALUES(?,?,?,?,?)\",\n               (who,purpose,int(value==\"on\"),VERSION,datetime.now(timezone.utc).isoformat()))",
+          "supports": "Objection is recorded by owner and purpose; eligibility reads the current choices."
+        },
+        {
+          "path": "store.py",
+          "start_line": 89,
+          "end_line": 90,
+          "quote": "    row=db.execute(\"SELECT value FROM choices WHERE owner=? AND purpose=? ORDER BY id DESC LIMIT 1\",(owner,purpose)).fetchone()\n    return bool(row and row[0])",
+          "supports": "Objection is recorded by owner and purpose; eligibility reads the current choices."
+        },
+        {
+          "path": "store.py",
+          "start_line": 102,
+          "end_line": 103,
+          "quote": "    r=db.execute(\"SELECT owner FROM cases WHERE id=? AND restricted=0 AND stage!='abandoned'\",(cid,)).fetchone()\n    return bool(r and enabled(db,r[0],\"promotions\") and not enabled(db,r[0],\"objection\"))",
+          "supports": "Objection is recorded by owner and purpose; eligibility reads the current choices."
+        },
+        {
+          "path": "store.py",
+          "start_line": 107,
+          "end_line": 109,
+          "quote": "    for row in db.execute(\"SELECT id FROM cases WHERE officer=?\",(who,)):\n        if eligible_campaign(db,row[0]):\n            queue(db,row[0],\"promotion\")",
+          "supports": "New campaigns queue only eligible subjects."
+        },
+        {
+          "path": "store.py",
+          "start_line": 140,
+          "end_line": 141,
+          "quote": "        elif kind==\"promotion\" and eligible_campaign(db,cid):\n            event(db,cid,\"promotion\",\"A new loan offer is available.\")",
+          "supports": "The worker rechecks eligibility for previously queued promotions."
+        },
+        {
+          "path": "store.py",
+          "start_line": 131,
+          "end_line": 135,
+          "quote": "        if kind==\"score\" and c[\"route\"]==\"automatic\" and c[\"stage\"]==\"pending\":\n            band=c[\"confirmed\"] or c[\"income\"]\n            stage=\"offered\" if c[\"amount\"]<=LIMITS[band] else \"declined\"\n            db.execute(\"UPDATE cases SET stage=? WHERE id=?\",(stage,cid))\n            event(db,cid,\"decision\",f\"Automatic {stage}. Amount {c['amount']} compared with {band} limit {LIMITS[band]}.\")",
+          "supports": "The separate service decision still reaches the case timeline."
+        }
+      ],
+      "explanation": "Objection cancels pending promotions. New campaigns and delivery consult the objection independently of the earlier marketing opt-in. The objector receives zero promotions and one service decision. The subscribed control receives one of each.",
+      "runtime_evidence": {
+        "contract": "PASS",
+        "failure": null,
+        "observed": {
+          "objector": {
+            "decisions": 1,
+            "promotions": 0
+          },
+          "subscriber": {
+            "decisions": 1,
+            "promotions": 1
+          }
+        },
+        "test": "test_GDPR11_object_to_marketing_keep_service"
+      },
+      "evidence_review": {
+        "version": "2",
+        "unit": "source span in one frozen snapshot",
+        "routes": [
+          {
+            "name": "primary",
+            "facts": [
+              {
+                "claim": "Objection is recorded by owner and purpose; eligibility reads the current choices.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 94,
+                    "end_line": 95
+                  },
+                  {
+                    "path": "store.py",
+                    "start_line": 89,
+                    "end_line": 90
+                  },
+                  {
+                    "path": "store.py",
+                    "start_line": 102,
+                    "end_line": 103
+                  }
+                ]
+              },
+              {
+                "claim": "New campaigns queue only eligible subjects.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 107,
+                    "end_line": 109
+                  }
+                ]
+              },
+              {
+                "claim": "The worker rechecks eligibility for previously queued promotions.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 140,
+                    "end_line": 141
+                  }
+                ]
+              },
+              {
+                "claim": "The separate service decision still reaches the case timeline.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 131,
+                    "end_line": 135
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "v02-GDPR12",
+      "obligation_id": "GDPR12",
+      "article": "25(1)–(2), 32(1)",
+      "title": "Case and offer confidentiality",
+      "scenario": "The selected risk is disclosure of a synthetic case or offer via its ordinary case and download routes. The permitted principals are the owner and the assigned officer.",
+      "verdict": "SUPPORTED",
+      "evidence": [
+        {
+          "path": "app.py",
+          "start_line": 62,
+          "end_line": 65,
+          "quote": "                require(user in self.passwords and secrets.compare_digest(data.get(\"password\",\"\").encode(),self.passwords[user].encode()),\"Invalid account or password.\",403)\n                self.sessions.pop(sid,None)\n                sid=secrets.token_urlsafe(32)\n                self.sessions[sid]=(user,secrets.token_urlsafe(24),now+8*3600)",
+          "supports": "The principal comes from the authenticated session."
+        },
+        {
+          "path": "app.py",
+          "start_line": 47,
+          "end_line": 47,
+          "quote": "            who,token,_=self.sessions.get(sid,(\"\",\"\",0))",
+          "supports": "The principal comes from the authenticated session."
+        },
+        {
+          "path": "app.py",
+          "start_line": 92,
+          "end_line": 96,
+          "quote": "                        route=re.fullmatch(r\"/case/(\\d{1,18})(?:/([a-z-]+))?\",path)\n                        require(route,\"Page unavailable.\",404)\n                        cid=int(route[1])\n                        c=store.get_case(db,who,cid)\n                        op=route[2]",
+          "supports": "Both resource routes resolve the same case through an owner-or-assigned-officer predicate and deny missing matches."
+        },
+        {
+          "path": "store.py",
+          "start_line": 55,
+          "end_line": 58,
+          "quote": "def get_case(db, who, cid):\n    row = db.execute(\"SELECT * FROM cases WHERE id=? AND (owner=? OR officer=?)\",(cid,who,who)).fetchone()\n    require(row, \"Case unavailable.\", 404)\n    return dict(row)",
+          "supports": "Both resource routes resolve the same case through an owner-or-assigned-officer predicate and deny missing matches."
+        },
+        {
+          "path": "app.py",
+          "start_line": 100,
+          "end_line": 103,
+          "quote": "                        elif method==\"GET\" and op in (\"access\",\"portable\",\"offer\"):\n                            if op==\"offer\":\n                                require(c[\"stage\"] in (\"accepted\",\"offered\") and not c[\"restricted\"],\"Offer unavailable.\",409)\n                                item=store.offer(db,c)",
+          "supports": "The offer and the case page consume that authorized result."
+        },
+        {
+          "path": "app.py",
+          "start_line": 110,
+          "end_line": 112,
+          "quote": "                        elif method==\"GET\" and op is None:\n                            a=store.access(db,c)\n                            body=views.detail(c,token,who,a[\"timeline\"],a[\"jobs\"])",
+          "supports": "The offer and the case page consume that authorized result."
+        }
+      ],
+      "explanation": "The authenticated session supplies the principal to a case lookup constrained by owner or assigned officer. Both protected routes consume that lookup. In the four-role matrix the two permitted principals receive 200 on each route, while the other borrower and unassigned officer each receive 404.",
+      "runtime_evidence": {
+        "contract": "PASS",
+        "failure": null,
+        "observed": {
+          "responses": {
+            "assigned": [
+              200,
+              200
+            ],
+            "other": [
+              404,
+              404
+            ],
+            "owner": [
+              200,
+              200
+            ],
+            "unassigned": [
+              404,
+              404
+            ]
+          },
+          "routes": [
+            "case",
+            "offer"
+          ]
+        },
+        "test": "test_GDPR12_case_and_document_isolation"
+      },
+      "evidence_review": {
+        "version": "2",
+        "unit": "source span in one frozen snapshot",
+        "routes": [
+          {
+            "name": "primary",
+            "facts": [
+              {
+                "claim": "The principal comes from the authenticated session.",
+                "anchors": [
+                  {
+                    "path": "app.py",
+                    "start_line": 62,
+                    "end_line": 65
+                  },
+                  {
+                    "path": "app.py",
+                    "start_line": 47,
+                    "end_line": 47
+                  }
+                ]
+              },
+              {
+                "claim": "Both resource routes resolve the same case through an owner-or-assigned-officer predicate and deny missing matches.",
+                "anchors": [
+                  {
+                    "path": "app.py",
+                    "start_line": 92,
+                    "end_line": 96
+                  },
+                  {
+                    "path": "store.py",
+                    "start_line": 55,
+                    "end_line": 58
+                  }
+                ]
+              },
+              {
+                "claim": "The offer and the case page consume that authorized result.",
+                "anchors": [
+                  {
+                    "path": "app.py",
+                    "start_line": 100,
+                    "end_line": 103
+                  },
+                  {
+                    "path": "app.py",
+                    "start_line": 110,
+                    "end_line": 112
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "v02-GDPR13",
+      "obligation_id": "GDPR13",
+      "article": "22(1), 22(2)(c), 22(3)",
+      "title": "Effective human intervention after automatic refusal",
+      "scenario": "Assume a qualifying significant automatic credit refusal and valid separate explicit consent under Art. 22(2)(c). The applicant contests, submits their view and an authorized officer approves. Manual selection and pre-decision withdrawal are also exercised.",
+      "verdict": "CONTRADICTED",
+      "evidence": [
+        {
+          "path": "store.py",
+          "start_line": 191,
+          "end_line": 196,
+          "quote": "    elif op==\"review\":\n        require(not c[\"restricted\"] and (stage==\"contested\" or (stage==\"pending\" and c[\"route\"]==\"manual\")),\"Case unavailable for human determination.\")\n        result=data.get(\"result\")\n        require(result in (\"offered\",\"declined\") and data.get(\"reason\",\"\").strip(),\"Choose an outcome and explain your assessment.\")\n        db.execute(\"UPDATE cases SET stage=? WHERE id=?\",(stage if stage==\"contested\" else result,cid))\n        event(db,cid,\"decision\",f\"{who} reviewed: {result}. \"+data[\"reason\"])",
+          "supports": "On review of a contested case the officer’s new result is logged while the case retains its previous stage."
+        },
+        {
+          "path": "app.py",
+          "start_line": 101,
+          "end_line": 103,
+          "quote": "                            if op==\"offer\":\n                                require(c[\"stage\"] in (\"accepted\",\"offered\") and not c[\"restricted\"],\"Offer unavailable.\",409)\n                                item=store.offer(db,c)",
+          "supports": "The offer download rejects a case left contested."
+        }
+      ],
+      "explanation": "The officer records an approval after reading the appeal. For contested cases the update writes the previous contested stage back to the case. The borrower receives HTTP 409 at the offer endpoint despite the approval in their timeline. The ordinary manual route is a separate path and cannot deliver this reversal.",
+      "runtime_evidence": {
+        "contract": "FAIL",
+        "failure": "AssertionError: /case/1/offer: expected 200, got 409: <!doctype html><html lang=\"en\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Request unavailable · Loan Desk</title><link rel=\"stylesheet\" href=\"/style.css\"><header><nav><a class=\"brand\" href=\"/\">Loan Desk</a><span>Application workspace</span></nav></header><main><section><h2>Offer unavailable.</h2><a href=\"/\">Return to workspace</a></section></main></html>",
+        "observed": {
+          "download_status": 409,
+          "offer_amount": null,
+          "review_log": "morgan reviewed: offered. Documents reviewed.",
+          "stage": "contested"
+        },
+        "test": "test_GDPR13_real_decision_appeal_and_manual_alternative"
+      },
+      "evidence_review": {
+        "version": "2",
+        "unit": "source span in one frozen snapshot",
+        "routes": [
+          {
+            "name": "primary",
+            "facts": [
+              {
+                "claim": "On review of a contested case the officer’s new result is logged while the case retains its previous stage.",
+                "anchors": [
+                  {
+                    "path": "store.py",
+                    "start_line": 191,
+                    "end_line": 196
+                  }
+                ]
+              },
+              {
+                "claim": "The offer download rejects a case left contested.",
+                "anchors": [
+                  {
+                    "path": "app.py",
+                    "start_line": 101,
+                    "end_line": 103
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "stage": "counterexample_review",
+  "input_hash": "7530c25438c6a96056ce03d3eed25d86fccb5d854c178ff60e6204066219836c",
+  "seconds": 5.222,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 12321,
+        "output_tokens": 958,
+        "total_tokens": 13279,
+        "input_token_details": {
+          "cache_read": 896,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "recommended_status": "CONTRADICTED",
+    "counterexamples": [
+      "Accepted case with term=24: GET /case/<id>/portable returns {\"email\",\"amount\",\"income\"} only — 'term' absent, so the borrower does not receive all four provided fields (store.py:0114-0116, app.py:0106-0109).",
+      "Same accepted case, POST /case/<id>/transfer with destination='Local Credit Union': receiver.payload = json.dumps(portable(c)) also lacks 'term' (store.py:0201-0204)."
+    ],
+    "unsupported_assumptions": [
+      "That the scenario case is in stage 'accepted' at runtime — a scenario fact, not verified against any database; the draft correctly flags this as a limit rather than a defect.",
+      "That 'term' is a borrower-provided field distinct from inferred data — supported by the form (views.py:0031) and insert (store.py:0077-0078), so this is not an assumption gap."
+    ],
+    "anchors": [
+      {
+        "artifact": "store.py",
+        "start_line": 114,
+        "end_line": 116,
+        "role": "operation",
+        "explanation": "portable() gates on stage=='accepted' then returns only keys email, amount, income; 'term' is omitted from the key tuple, so the four-field completeness predicate fails."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 36,
+        "end_line": 38,
+        "role": "propagation",
+        "explanation": "Case schema persists email, amount, term, income, so 'term' is available on the row but not exported."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 77,
+        "end_line": 78,
+        "role": "trigger",
+        "explanation": "Application submission stores the borrower-supplied email, amount, term and income into the case row — the provided (not inferred) fields."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 100,
+        "end_line": 109,
+        "role": "operation",
+        "explanation": "GET portable branch: owner gate at 0105, application/json mime and attachment disposition at 0107-0108, json.dumps body at 0109 — machine-readable delivery is satisfied; content governed by portable()."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 201,
+        "end_line": 204,
+        "role": "operation",
+        "explanation": "transfer action requires destination 'Local Credit Union' and persists json.dumps(portable(c)) to receiver, inheriting the missing 'term'."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 69,
+        "end_line": 70,
+        "role": "control",
+        "explanation": "UI exposes portable download and transfer only when stage=='accepted', matching the contract precondition."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 197,
+        "end_line": 200,
+        "role": "trigger",
+        "explanation": "accept action sets stage='accepted', the state that unlocks portable() and transfer."
+      }
+    ],
+    "review_summary": "Confirmed CONTRADICTED. Scenario applicability holds: the borrower supplied all four fields (views.py:0031 form; store.py:0077-0078 insert) and the case is a current contract. Machine-readable delivery is satisfied (app.py:0107-0109 application/json attachment, owner-gated at 0105), inferred decisions are excluded (portable() key tuple contains no stage/confirmed/decision), and the transfer targets the selected local receiver (store.py:0202). The decisive defect is store.py:0116: portable() returns only email, amount, income, omitting 'term' even though it is persisted (store.py:0037) and available on the case row. Both the borrower download (app.py:0106) and the direct transfer (store.py:0203) reuse this incomplete payload, so the four-field completeness requirement fails on both required targets. No in-scope counterexample rescues the draft; the draft's own limits (no runtime verification, stage is a scenario fact) are correctly stated and do not undermine the static defect."
+  }
+}

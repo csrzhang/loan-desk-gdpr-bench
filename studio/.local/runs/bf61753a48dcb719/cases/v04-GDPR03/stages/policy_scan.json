@@ -1,0 +1,52 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "b0f10b7af28507cca18013e0a18c870a06bab7d2709f33043a3d62cb829320ef",
+  "seconds": 5.801,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9871,
+        "output_tokens": 865,
+        "total_tokens": 10736,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "Optional \"repayment insights\" processing is gated on a purpose-specific, affirmative, versioned consent record for purpose \"insights\"; a \"promotions\" choice must not satisfy that gate; the core application (application submission, case handling) must remain usable with insights off.",
+    "applicability_facts": [
+      "Scenario: adult EU-established private controller; core application used with optional repayment insights initially off.",
+      "store.py:0088-0090 enabled() reads the latest choices row for the exact (owner, purpose) pair, so insights and promotions are separate purposes.",
+      "store.py:0092-0095 preference() accepts only purposes insights/promotions/objection and values on/off, and writes a versioned record (version=VERSION, store.py:0011) with timestamp.",
+      "store.py:0137-0139 the 'report' (insights) job runs only if enabled(owner,'insights'); store.py:0167-0168 the report action requires enabled(who,'insights').",
+      "store.py:0100-0103 campaign eligibility uses only the 'promotions' purpose (plus objection), never 'insights'.",
+      "views.py:0033-0036 renders separate per-purpose switch forms for insights, promotions and objection; views.py:0031-0032 application form does not require any consent checkbox.",
+      "store.py:0065-0083 submit() requires no insights consent; core application path is independent of choices."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "No exception relied on: the requirement is a consent-gating predicate, not a prohibition subject to Art. 9/23-style derogations.",
+      "Withdrawal (switch off) is handled by appending a new 'off' choice row (store.py:0094-0098), which the latest-row read in enabled() honors; this is a control, not an exception."
+    ],
+    "required_controls": [
+      "Purpose separation: insights gate must read only the 'insights' purpose (store.py:0088-0090, 0137, 0168).",
+      "Affirmative opt-in: default state is off (no choices row => enabled() False, store.py:0088-0090); enabling requires an explicit 'on' submission (views.py:0036, store.py:0093).",
+      "Versioned record: each choice stores version and timestamp (store.py:0094-0095, schema store.py:0042).",
+      "Promotions must not authorize insights: campaign/eligibility path uses 'promotions' only (store.py:0100-0103, 0140).",
+      "Core availability without consent: application submission and case handling do not depend on insights consent (store.py:0065-0083; views.py:0031-0032).",
+      "Withdrawal as easy as grant: symmetric on/off switch per purpose (views.py:0034-0036) and queued report jobs cancelled on 'off' (store.py:0096-0098)."
+    ],
+    "assessment_limits": [
+      "Static source reading only; no execution, no runtime or database inspection performed.",
+      "No assessment of whether the consent UI text meets Art. 7(2) intelligibility beyond the presence of separate per-purpose controls.",
+      "No assessment of other GDPR obligations (Art. 6(1)(b) contract basis, Art. 22 automated decisions, retention) beyond the named insights-consent predicate.",
+      "No inference about upstream or hidden implementation; only the supplied app.py, store.py, views.py, style.css are considered.",
+      "Whether a real user actually toggled insights on is a runtime fact not established by the snapshot; only the code-level gate is assessed."
+    ]
+  }
+}

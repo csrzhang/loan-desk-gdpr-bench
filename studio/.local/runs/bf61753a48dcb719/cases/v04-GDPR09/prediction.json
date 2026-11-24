@@ -1,0 +1,77 @@
+{
+  "case_id": "v04-GDPR09",
+  "verdict": "CONTRADICTED",
+  "explanation": "Code facts: The cases table carries a restricted flag and a confirmed band (store.py:0036-0038); jobs are queued with state 'queued' (store.py:0043-0044, 0085-0086), and submit() queues a 'score' job for the automatic route (store.py:0081-0082). The 'restrict' action sets restricted=1 and logs \"Accuracy disputed. Ordinary processing paused.\" (store.py:0175-0178). The 'drain' action calls drain() for any case with no restriction gate (store.py:0150-0152). Inside drain(), line 0127 skips only jobs whose kind is not 'score' when c[\"restricted\"] is truthy; the score branch at 0131-0136 has no restricted check, computes band = confirmed or income, compares against LIMITS, and updates stage to offered/declined. The notify-before-release ordering is present: 'notify-release' requires restricted==1 plus a verified band and finding and sets restricted=2 (store.py:0179-0182), and 'release' requires restricted==2 before clearing (store.py:0183-0186). Verified data is preferred in scoring via c[\"confirmed\"] or c[\"income\"] (store.py:0132), and 'erase' requires stage=='abandoned' (store.py:0210-0212), so a restricted live case is retained.\n\nRequirement: Art. 18(1)(a) requires that, where accuracy is contested and the controller no longer needs the data but the data subject requires it for verification, processing be restricted; Art. 18(2) permits storage but not other processing without consent or legal grounds; Art. 18(3) requires notification before lifting the restriction. The scenario stipulates the partner income band is disputed before a queued score runs, the record is retained for verification, and no exception for ordinary scoring applies — so the trigger is present and the restriction must stop ordinary scoring, including the pending queued job.\n\nJustification: The restriction state is set correctly and the notification-before-release and verified-data-use controls exist, but the decisive control — halting the queued score — fails. Because drain()'s score branch (store.py:0131-0136) executes regardless of restricted=1, a pending automatic-route case with a queued score job will be scored from the disputed band and its stage mutated to offered/declined, which is ordinary use of disputed data contrary to Art. 18(1)(a)/(2). This supported in-scope counterexample yields CONTRADICTED. The preceding analysis's queue()/retry point is not decisive (no path re-queues score jobs); the decisive defect is the drain() score branch.",
+  "evidence": [
+    {
+      "path": "store.py",
+      "start_line": 126,
+      "end_line": 127,
+      "quote": "    for job in rows(db,\"SELECT * FROM jobs WHERE cid=? AND state='queued' ORDER BY id\",(cid,)):\n        if c[\"restricted\"] and job[\"kind\"] != \"score\":",
+      "supports": "Restriction gate skips only non-score jobs; score jobs are not skipped, so restriction does not stop ordinary scoring."
+    },
+    {
+      "path": "store.py",
+      "start_line": 131,
+      "end_line": 135,
+      "quote": "        if kind==\"score\" and c[\"route\"]==\"automatic\" and c[\"stage\"]==\"pending\":\n            band=c[\"confirmed\"] or c[\"income\"]\n            stage=\"offered\" if c[\"amount\"]<=LIMITS[band] else \"declined\"\n            db.execute(\"UPDATE cases SET stage=? WHERE id=?\",(stage,cid))\n            event(db,cid,\"decision\",f\"Automatic {stage}. Amount {c['amount']} compared with {band} limit {LIMITS[band]}.\")",
+      "supports": "Score branch executes with no restricted check, using the disputed band and mutating stage to offered/declined — the core Art. 18(1)(a) violation."
+    },
+    {
+      "path": "store.py",
+      "start_line": 150,
+      "end_line": 152,
+      "quote": "    if op==\"drain\":\n        drain(db,c)\n        return",
+      "supports": "drain action entrypoint invokes drain() for any case with no restriction gate."
+    },
+    {
+      "path": "store.py",
+      "start_line": 81,
+      "end_line": 82,
+      "quote": "    if route==\"automatic\":\n        queue(db,cid,\"score\")",
+      "supports": "submit() queues the 'score' job for the automatic route — the pending job the scenario says is queued before the dispute."
+    },
+    {
+      "path": "store.py",
+      "start_line": 175,
+      "end_line": 178,
+      "quote": "    elif op==\"restrict\":\n        require(stage!=\"abandoned\" and not c[\"restricted\"],\"Select an unrestricted live case.\")\n        db.execute(\"UPDATE cases SET restricted=1 WHERE id=?\",(cid,))\n        event(db,cid,\"dispute\",\"Accuracy disputed. Ordinary processing paused.\")",
+      "supports": "restrict sets restricted=1 and logs 'Ordinary processing paused', establishing the state drain() must honor."
+    },
+    {
+      "path": "store.py",
+      "start_line": 179,
+      "end_line": 186,
+      "quote": "    elif op==\"notify-release\":\n        require(c[\"restricted\"]==1 and data.get(\"reason\",\"\").strip() and data.get(\"band\") in LIMITS,\"Record verified band and finding.\")\n        db.execute(\"UPDATE cases SET restricted=2,confirmed=? WHERE id=?\",(data[\"band\"],cid))\n        event(db,cid,\"release notice\",\"Verification completed. Processing will resume. \"+data[\"reason\"])\n    elif op==\"release\":\n        require(c[\"restricted\"]==2,\"Notify the applicant before lifting the restriction.\",409)\n        db.execute(\"UPDATE cases SET restricted=0 WHERE id=?\",(cid,))\n        event(db,cid,\"release\",\"Restriction lifted.\")",
+      "supports": "notify-release requires restricted==1 and sets restricted=2; release requires restricted==2 before clearing — prior-notification ordering (18(2)/(3)) is present."
+    },
+    {
+      "path": "store.py",
+      "start_line": 132,
+      "end_line": 132,
+      "quote": "            band=c[\"confirmed\"] or c[\"income\"]",
+      "supports": "Scoring prefers confirmed band over declared income — verified-data use after release (18(3)) is present."
+    },
+    {
+      "path": "store.py",
+      "start_line": 181,
+      "end_line": 181,
+      "quote": "        db.execute(\"UPDATE cases SET restricted=2,confirmed=? WHERE id=?\",(data[\"band\"],cid))",
+      "supports": "notify-release persists the verified band to confirmed."
+    },
+    {
+      "path": "store.py",
+      "start_line": 210,
+      "end_line": 212,
+      "quote": "    elif op==\"erase\":\n        require(stage==\"abandoned\",\"Only abandoned applications qualify in this scenario.\",409)\n        db.execute(\"DELETE FROM cases WHERE id=?\",(cid,))",
+      "supports": "erase requires stage=='abandoned', so a restricted live case is retained for verification."
+    },
+    {
+      "path": "store.py",
+      "start_line": 36,
+      "end_line": 44,
+      "quote": "        CREATE TABLE IF NOT EXISTS cases(id INTEGER PRIMARY KEY AUTOINCREMENT, owner TEXT, officer TEXT,\n          email TEXT, amount INTEGER, term INTEGER, income TEXT, confirmed TEXT, route TEXT,\n          stage TEXT, restricted INTEGER DEFAULT 0);\n        CREATE TABLE IF NOT EXISTS summaries(cid INTEGER PRIMARY KEY REFERENCES cases ON DELETE CASCADE, title TEXT);\n        CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY, cid INTEGER REFERENCES cases ON DELETE CASCADE,\n          kind TEXT, body TEXT, at TEXT);\n        CREATE TABLE IF NOT EXISTS choices(id INTEGER PRIMARY KEY, owner TEXT, purpose TEXT, value INTEGER, version TEXT, at TEXT);\n        CREATE TABLE IF NOT EXISTS jobs(id INTEGER PRIMARY KEY AUTOINCREMENT, cid INTEGER REFERENCES cases ON DELETE CASCADE,\n          kind TEXT, state TEXT DEFAULT 'queued');",
+      "supports": "Schema defines cases.restricted and jobs.state; whether a score job is actually queued in the scenario database is a scenario fact, not verified in code."
+    }
+  ]
+}

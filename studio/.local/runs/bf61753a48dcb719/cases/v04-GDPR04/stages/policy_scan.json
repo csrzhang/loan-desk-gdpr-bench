@@ -1,0 +1,52 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "da3dee4d63aa59b4800f17b6956eca558d9e1fc62d9e32d5a8a6ecf5473f087a",
+  "seconds": 6.276,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9873,
+        "output_tokens": 965,
+        "total_tokens": 10838,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "Withdrawal of an optional consent (here: the \"insights\" purpose that generates repayment reports) must be as easy as giving it, must be preceded by information, and must stop future report generation — including already queued report jobs and any retries — while leaving an unaffected subscriber's queued report deliverable.",
+    "applicability_facts": [
+      "Scenario: two borrowers opt in (insights consent) and queue reports; one withdraws before execution; the queue is reopened and drained twice; the other borrower remains eligible.",
+      "store.py:0092-0098 preference() accepts purpose 'insights' with value 'off' and, on that transition, cancels queued 'report' jobs for that owner's cases (UPDATE jobs SET state='cancelled' WHERE kind='report' AND state='queued' AND cid IN (SELECT id FROM cases WHERE owner=?)).",
+      "store.py:0137-0139 drain() only executes a 'report' job when enabled(db, owner, 'insights') is true, so a withdrawn consent blocks execution even if a report job were still queued.",
+      "store.py:0126 drain() selects only state='queued' jobs, so cancelled jobs are not re-executed on a second drain (no retry path).",
+      "views.py:0033-0036 renders the privacy choices with a 'Switch off' control for an enabled purpose, i.e. withdrawal is offered through the same form/route as opt-in.",
+      "store.py:0009 NOTICE and views.py:0024-0025, 0033 state beforehand that insights are optional and can be switched off at any time as easily as on, and that withdrawal applies to future processing.",
+      "store.py:0098 cancellation is scoped by owner, so the other borrower's queued report job is untouched and remains eligible."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "No exception applies: the scenario stipulates an adult, EU-established private controller and a voluntary optional consent, so no Art. 7(3) exemption or legal-retention override is in play.",
+      "The 'objection' purpose (store.py:0096-0098) is a separate direct-marketing control and is not the withdrawal mechanism for the insights consent; it is not relied on here."
+    ],
+    "required_controls": [
+      "Symmetric withdrawal control: the same /preference form and route used to switch insights on also switches it off (views.py:0033-0036; app.py:0085-0087).",
+      "Prior information: NOTICE text and the privacy-choices copy disclose optionality, ease of withdrawal and future-only effect (store.py:0009; views.py:0024-0025, 0033).",
+      "Cancellation of already queued work: preference(...,'insights','off') sets queued 'report' jobs to 'cancelled' for that owner's cases (store.py:0096-0098).",
+      "Execution-time gate: drain() refuses to produce a report unless insights consent is currently enabled (store.py:0137).",
+      "No retry of cancelled work: drain() only processes state='queued' jobs, so repeated drains do not resurrect cancelled reports (store.py:0126, 0143).",
+      "Owner-scoped effect: cancellation and the enabled() check are per owner, preserving the unaffected borrower's queued report (store.py:0088-0090, 0098, 0137)."
+    ],
+    "assessment_limits": [
+      "Assessment is static reading of the supplied source only; no code was executed, no database was opened, and no drain was run.",
+      "The scenario's 'queue reopened and drained twice' outcome is taken as stipulated; the source shows the mechanisms (cancellation, enabled() gate, queued-only selection) but not runtime results.",
+      "Only the insights/report withdrawal path is assessed; promotions, objection, and other Art. 7/17/18 controls are out of scope for this rule.",
+      "No claim is made about upstream or hidden implementation beyond the three supplied files.",
+      "No legal deadline or additional obligation is inferred beyond the stated Art. 7(3) technical predicate."
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+--- a/store.py
++++ b/store.py
+@@ -93,8 +93,8 @@
+     require(who in CUSTOMERS and purpose in ("insights","promotions","objection") and value in ("on","off"),"Invalid preference.")
+     db.execute("INSERT INTO choices(owner,purpose,value,version,at) VALUES(?,?,?,?,?)",
+                (who,purpose,int(value=="on"),VERSION,datetime.now(timezone.utc).isoformat()))
+-    if (purpose,value)==("insights","off") or (purpose,value) in (("promotions","off"),("objection","on")):
+-        kind = "report" if purpose=="insights" else "promotion"
++    if (purpose,value) in (("promotions","off"),("objection","on")):
++        kind = "promotion"
+         db.execute("UPDATE jobs SET state='cancelled' WHERE kind=? AND state='queued' AND cid IN (SELECT id FROM cases WHERE owner=?)",(kind,who))
+ 
+ def eligible_campaign(db,cid):
+@@ -134,7 +134,7 @@
+             db.execute("UPDATE cases SET stage=? WHERE id=?",(stage,cid))
+             event(db,cid,"decision",f"Automatic {stage}. Amount {c['amount']} compared with {band} limit {LIMITS[band]}.")
+             state="done"
+-        elif kind=="report" and enabled(db,c["owner"],"insights") and c["stage"]!="abandoned":
++        elif kind=="report" and c["stage"]!="abandoned":
+             event(db,cid,"report",f"Monthly principal estimate: EUR {c['amount']/c['term']:.2f}.")
+             state="done"
+         elif kind=="promotion" and eligible_campaign(db,cid):

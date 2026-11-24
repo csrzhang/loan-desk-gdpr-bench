@@ -1,0 +1,87 @@
+{
+  "stage": "counterexample_review",
+  "input_hash": "1d559e0b131152b4857f4f5e1260dc219679f036eb0ebacaae10a0500c0a150a",
+  "seconds": 4.386,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 12538,
+        "output_tokens": 851,
+        "total_tokens": 13389,
+        "input_token_details": {
+          "cache_read": 0,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "recommended_status": "SUPPORTED",
+    "counterexamples": [],
+    "unsupported_assumptions": [
+      "The draft treats the 'auto' checkbox as a processing-route choice rather than an applicant attribute; this is a reasonable reading (it selects automatic vs manual review, both described in the notice) and does not create a hobby-type purposeless field, so it does not defeat the predicate.",
+      "The draft's claim that no hobby column exists is confirmed by the schema; no hidden persistence path for arbitrary keys was found in the supplied artifacts."
+    ],
+    "anchors": [
+      {
+        "artifact": "views.py",
+        "start_line": 31,
+        "end_line": 32,
+        "role": "operation",
+        "explanation": "Customer /apply form renders only email, amount, term, income and the 'auto' route checkbox; no hobby or other purposeless field is offered."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 53,
+        "end_line": 55,
+        "role": "propagation",
+        "explanation": "POST body parsed into data with bounded field count; no extra fields synthesized before dispatch."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 83,
+        "end_line": 84,
+        "role": "propagation",
+        "explanation": "/apply forwards the parsed payload to store.submit, the sole application sink."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 67,
+        "end_line": 67,
+        "role": "control",
+        "explanation": "Allowlist set(data) <= {email, amount, term, income, auto} rejects any unexpected key such as 'hobby'."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 36,
+        "end_line": 38,
+        "role": "control",
+        "explanation": "cases schema has no hobby column; only email, amount, term, income, route, stage etc. can be persisted."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 77,
+        "end_line": 79,
+        "role": "operation",
+        "explanation": "INSERT persists only email, amount, term, income, route, stage; summary title derived from amount and term."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 111,
+        "end_line": 116,
+        "role": "propagation",
+        "explanation": "Onward payloads limited: offer() sends email/amount/term; portable() sends email/amount/income."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 201,
+        "end_line": 203,
+        "role": "propagation",
+        "explanation": "Transfer stores only the portable payload (email, amount, income) for the receiving controller."
+      }
+    ],
+    "review_summary": "Confirmed SUPPORTED. The scenario's necessary inputs (email for delivery, amount and term for the offer, income band for assessment) are exactly the applicant attributes collected. The form (views.py 31-32) offers no hobby or other purposeless field; the accepted payload is allowlisted to {email, amount, term, income, auto} (store.py 67), so a 'hobby' key is rejected; persistence writes only those fields into a schema lacking any hobby column (store.py 36-38, 77-79); and onward sends are limited to email/amount/term (offer, store.py 111-112) and email/amount/income (portable/transfer, store.py 114-116, 201-203). The 'auto' checkbox is a processing-route choice tied to the notice's automatic-decision option, not an extra applicant attribute, so it does not create a minimization defect. No feasible in-scope counterexample was found in the supplied artifacts."
+  }
+}

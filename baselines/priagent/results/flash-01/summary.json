@@ -1,0 +1,401 @@
+{
+  "run_config": {
+    "model": "deepseek-flash",
+    "endpoint": "https://api.deepseek.com/anthropic",
+    "thinking": false,
+    "temperature": 0,
+    "max_tokens": 4096,
+    "timeout_seconds": 120,
+    "max_retries": 2,
+    "dependencies": {
+      "langgraph": "1.2.16",
+      "langchain-core": "1.7.0",
+      "langchain-anthropic": "1.7.6",
+      "pydantic": "2.14.1",
+      "python-dotenv": "1.2.4"
+    },
+    "protocol": {
+      "run.py": "2a200687dc1fd7938e4fcf8b5eb6906fe1e4f6089d1c76958364fa7b92dd2a35",
+      "graph.py": "2ccabe0ee825d8762056bbeba784acb2a58dd87095d4dd54284ccdfa237ed5d7",
+      "regulatory.py": "68236a4dec6a62e1940b92ee01d5f1ff3434a06cef1becd1aa9c0c26d7c3fa5a",
+      "llm.py": "b644a0ddccfa0610b8004954fbc389a5aa00e14b85521c08966ab5410f19282c",
+      "config.py": "73691f95c429df75663023fd8a2ac41eb5878dcafc1c7632bc1186e6cc40cc0f",
+      "requirements-by-rule.json": "70ba46636b5fc380236b76d81066d5838a663878d7b540cf14d4aa8faebe7e3c"
+    },
+    "cases": {
+      "base-GDPR01": {
+        "public_id": "case-eee8214576f20771",
+        "packet_hash": "18a51e0ae52ee4aae7a552b0483fcc3773e6ebba25679fbf0ef79a6ac347d7b5"
+      },
+      "base-GDPR02": {
+        "public_id": "case-7c8cadf0fbef5b9e",
+        "packet_hash": "76557391ce43b0d74f0962cdba9dd026b370936bec5728fae43b4e8609bbee56"
+      },
+      "base-GDPR03": {
+        "public_id": "case-3069ac4562c627c4",
+        "packet_hash": "35a6136e85bd240df18636b9e4ea3b75637ce5818734e3222235b0e4868ee2c1"
+      },
+      "base-GDPR04": {
+        "public_id": "case-0510bcc34e1f6adc",
+        "packet_hash": "1fa1ed3b7a2d16c928d3f3073a32758d49e52aa299e572ef62e0a51e970e5590"
+      },
+      "base-GDPR05": {
+        "public_id": "case-dab303c6646321a3",
+        "packet_hash": "2d9b53341033d8110527ee48048a40abf05f6ccddd0868f96465bfd33f57b9ef"
+      },
+      "base-GDPR06": {
+        "public_id": "case-de0ac4f1d3800546",
+        "packet_hash": "003e666e66adb40757ec8489876f9ba77926a6842cf8a31b04af0260c12fa79c"
+      },
+      "base-GDPR07": {
+        "public_id": "case-ccc1ab87215e910c",
+        "packet_hash": "fa138e8fd06db60bba7e7fa31b26a61d023872612d39efa4d94588e444deff5e"
+      },
+      "base-GDPR08": {
+        "public_id": "case-beda4491de8bd6a4",
+        "packet_hash": "3d1796fb9ff214a24381f9b776ac6bfaf355344a992ab48b60a2df2bf20ab0d9"
+      },
+      "base-GDPR09": {
+        "public_id": "case-5bdca950d96f97fb",
+        "packet_hash": "0edb177eae6dc318ce0e09ab94a68e297e72b5c085f5fde1acfd908cdf660e61"
+      },
+      "base-GDPR10": {
+        "public_id": "case-9d84e772fed0a12f",
+        "packet_hash": "1ffde0018bfa3b4ff4c790f2b4afa69c17788ed99c3cb4b0b430e83ef2600173"
+      },
+      "base-GDPR11": {
+        "public_id": "case-3bcabc80495ff345",
+        "packet_hash": "f2b7fb6260468e7971f193acb6b4d0fb13f89c8c2818f974196ee86ad8b9a863"
+      },
+      "base-GDPR12": {
+        "public_id": "case-fe2c100f154db2bb",
+        "packet_hash": "c130941ea3459cd1bd4a455edb5563991059792a786f6cbf55cafc762dae85ca"
+      },
+      "base-GDPR13": {
+        "public_id": "case-5145216680c9ca8c",
+        "packet_hash": "1175c514aa8d9dff7a355f695c689aa16b648bc8a3c8e1646cc5d0189c44f63b"
+      },
+      "v01-GDPR01": {
+        "public_id": "case-53784a3b4a2b7ead",
+        "packet_hash": "c2e882c698dc7937421738569e5d8cbbc2c7a81481c1cb1675b7789ae2fc38db"
+      },
+      "v01-GDPR02": {
+        "public_id": "case-7acbe635e96d31e0",
+        "packet_hash": "c85c76212a216f8c75a00a3d8a1f4a6d16967f177c7d3803e47724ecad292dbf"
+      },
+      "v01-GDPR03": {
+        "public_id": "case-75ca456a0437b11c",
+        "packet_hash": "36fa8f6144fde82a428d0b19e2efebc2db1089de64169fa158df05cfc521772d"
+      },
+      "v01-GDPR04": {
+        "public_id": "case-d1829a3a49c50d4a",
+        "packet_hash": "1ce790f4e9c479640e10b0a5f106cc120c05d001ac991a6de8c168daaa91c4ab"
+      },
+      "v01-GDPR05": {
+        "public_id": "case-c0e51f100dab42dd",
+        "packet_hash": "e6fc602332f269726ce81d2ea542bc0b4f1dbcba6b56a6cc79da9ef5dfae7c6c"
+      },
+      "v01-GDPR06": {
+        "public_id": "case-4955c4bf25739903",
+        "packet_hash": "461e0678261d370cc604dc1482ed02791f8af04edd025c7ef491d2b81dcefba2"
+      },
+      "v01-GDPR07": {
+        "public_id": "case-52b6d48b2b7957cc",
+        "packet_hash": "478aa889aa86dcc68193e00ee904cb47384a0c26d58b546355aa0382f9356c2e"
+      },
+      "v01-GDPR08": {
+        "public_id": "case-e0f6f83459fffd5c",
+        "packet_hash": "ddb344767672c8879953d8d858fb69a8e556d1de763f8c59e7b875af109e5b02"
+      },
+      "v01-GDPR09": {
+        "public_id": "case-4843c3d928789be1",
+        "packet_hash": "274781aca958cb725c6f72db78d92719d5dada17fe477f4834450703d71654af"
+      },
+      "v01-GDPR10": {
+        "public_id": "case-afb407435ec0dce9",
+        "packet_hash": "0e27b55fe3ef6d2d706bfb8265872ed168aa5f5e0bdbf4fb0da0e9a6ac9625fa"
+      },
+      "v01-GDPR11": {
+        "public_id": "case-dff94f924fd01314",
+        "packet_hash": "6b16e39a9c8585273b4689f424efa7c92bde3279a28964c4b60776e65c5de7f4"
+      },
+      "v01-GDPR12": {
+        "public_id": "case-a92157ef2b7c868d",
+        "packet_hash": "3629c1e4b77cf0e37f963bbccaa3d51f7b51b63f5c737ac4eca4549ce63d0d9a"
+      },
+      "v01-GDPR13": {
+        "public_id": "case-f389e05f2c6d5139",
+        "packet_hash": "b3457880d3595fa12b3ed5d9e12b44384317575eaf58dd070a663e52a92f34fa"
+      },
+      "v02-GDPR01": {
+        "public_id": "case-eefe071e17ebe99b",
+        "packet_hash": "f4d7b2a564ebabda503637867d661e510c20b1ebd7c760cafcc191df45fc5f8b"
+      },
+      "v02-GDPR02": {
+        "public_id": "case-b9a06de9c130e714",
+        "packet_hash": "e47ed1e3a8a90090df964520bb214046fbe41ea18685829069f3d3eb947c5087"
+      },
+      "v02-GDPR03": {
+        "public_id": "case-172145dfbf851d37",
+        "packet_hash": "d6281ab7f48274cad1eec42eae5aa1352808f68e879cf4786b0bfb8287efc1ad"
+      },
+      "v02-GDPR04": {
+        "public_id": "case-1fdc67598a4f9d44",
+        "packet_hash": "088cae65978543c65ffa8fe6a768c328eefe6c61e0f8aeee769647ec2298b5e9"
+      },
+      "v02-GDPR05": {
+        "public_id": "case-aeef97ab38a692e1",
+        "packet_hash": "150a7a4cf1dd50d22faa9e9a1533829c1c2e6c97836ab3d4a97c327d864ae2f6"
+      },
+      "v02-GDPR06": {
+        "public_id": "case-ecfb9692131a0c26",
+        "packet_hash": "3bc16b44462cce4407ad37458f2ec3313c6665e809e19d4e345e375b87284a01"
+      },
+      "v02-GDPR07": {
+        "public_id": "case-0328e7ce0df1410f",
+        "packet_hash": "97341f53bc1800da36592d5e52400bd5f796058f5ec038d7552601a983e06f13"
+      },
+      "v02-GDPR08": {
+        "public_id": "case-4ad934efd74f789a",
+        "packet_hash": "0056cacaab378507d116363ea3c3c9e0fb5820aa5b9e1037b29bb67a5343a5ef"
+      },
+      "v02-GDPR09": {
+        "public_id": "case-18c17db9829f13f3",
+        "packet_hash": "72a5d1ac05c4d675bd3890a63cc2901e53a681d19569891b7dc1d7ba0f41db15"
+      },
+      "v02-GDPR10": {
+        "public_id": "case-7b9a90578bf03755",
+        "packet_hash": "95c40426a42549e850555408712bbcd02014e1bc7a28d722f498c7132047b11f"
+      },
+      "v02-GDPR11": {
+        "public_id": "case-e72e530b8578dd71",
+        "packet_hash": "e90c6cd82ddc615ce91db66b152fcfcff6338ae415f61fa75cb067bc714e07a6"
+      },
+      "v02-GDPR12": {
+        "public_id": "case-72c806b08939c84b",
+        "packet_hash": "72d2d79f3cd538c3602f4c8bb02dd52a8f1e5bc33cbef860a0b2a376bf7b61aa"
+      },
+      "v02-GDPR13": {
+        "public_id": "case-064f34758b81c15d",
+        "packet_hash": "9a83c578034e766661f2527dda9488b28127e1125aee21045a6f37b723e7b0d5"
+      },
+      "v03-GDPR01": {
+        "public_id": "case-3799240c46c6ccb9",
+        "packet_hash": "29471e9cc73583a143245a60c0c420f780838f8ca0be17a100a78b9adfe0173e"
+      },
+      "v03-GDPR02": {
+        "public_id": "case-f9acc079a43a8fc5",
+        "packet_hash": "8fc68cdd76ce33851fcb0c896e84c10f99e446ea6b91e65fec3870970562df95"
+      },
+      "v03-GDPR03": {
+        "public_id": "case-a4419e5fa2bd3165",
+        "packet_hash": "cdd0311cf0fd8ec471b67eca0229160bb7a841b15a1949148bf82fbc9186d249"
+      },
+      "v03-GDPR04": {
+        "public_id": "case-15294add108c0caa",
+        "packet_hash": "0f1ccd6eb1e7a7563c2f3cad7864594162314094928b9362eccc369ac6aac5a6"
+      },
+      "v03-GDPR05": {
+        "public_id": "case-f7b1567ae0a57958",
+        "packet_hash": "8eede074fbd176c9ed5a947279043117f55adb9a6bd8de39ff383734c6a81792"
+      },
+      "v03-GDPR06": {
+        "public_id": "case-1126878437bde490",
+        "packet_hash": "79db693948982ca9fc7fcfb419b3474873fd1e9cdce6c109724d0d4446a8ba5b"
+      },
+      "v03-GDPR07": {
+        "public_id": "case-56a88cf08f60db86",
+        "packet_hash": "9099255ca9678ba7b3ce20cb12085f9945ead8f8de73d380c05196e30676c7a1"
+      },
+      "v03-GDPR08": {
+        "public_id": "case-baed74ec8f21c057",
+        "packet_hash": "e5c4f05662e517996968407ff0fa0c1cd6c0a156511ea45164c90a756c85b771"
+      },
+      "v03-GDPR09": {
+        "public_id": "case-21641a4df00324d0",
+        "packet_hash": "37e2fa13faa35dbd8cffcd16608d104d8786d1286d3775791907b276718915ad"
+      },
+      "v03-GDPR10": {
+        "public_id": "case-aa1844c1575bb871",
+        "packet_hash": "91c5fb568451c7f21e93ccbbfcb1a0ed179ec81574b92cb961acc78ca3d8779d"
+      },
+      "v03-GDPR11": {
+        "public_id": "case-76ca9cf22991391c",
+        "packet_hash": "24736daa91b77620fbb4101e3227b29f09f2c38dcca1164a9b23f83e975e28e8"
+      },
+      "v03-GDPR12": {
+        "public_id": "case-025ec4421f01ebfe",
+        "packet_hash": "4486387d2ac98f264d797e16da872268a435d501e26d7c64eaef63e6116a292d"
+      },
+      "v03-GDPR13": {
+        "public_id": "case-d2962eeeed07e8fc",
+        "packet_hash": "0e500ee68356af0fba49ec803bccbf1426318ab8a4cd510f9d1018e0277b296d"
+      },
+      "v04-GDPR01": {
+        "public_id": "case-c3966d6c34ae67a8",
+        "packet_hash": "e9cfecf8acbd985c38f7c15b5302a3bff2276b7ef527b68a36808c7d3faf3f04"
+      },
+      "v04-GDPR02": {
+        "public_id": "case-2f00ba44b200a66d",
+        "packet_hash": "d3340aa732e3943c55f6e0dd725c169fbfc5eeebec6b654d088dfaf9f49b212f"
+      },
+      "v04-GDPR03": {
+        "public_id": "case-e023410464055b47",
+        "packet_hash": "e6a7760f40db9d3aa89b917a12476a55499057a947dbb7d9daf398b916c877ca"
+      },
+      "v04-GDPR04": {
+        "public_id": "case-7e8fc1863f9b84b3",
+        "packet_hash": "8ec125ea04a9443c6bb659f4d0086e5e9462484d480214d9476a210edfa1fbf2"
+      },
+      "v04-GDPR05": {
+        "public_id": "case-2122e06a1c186841",
+        "packet_hash": "e6c28af7f53a284fba860585877451170708763127f3ed2368df76867d062515"
+      },
+      "v04-GDPR06": {
+        "public_id": "case-c7d0eb87b7bd14a6",
+        "packet_hash": "3fc4455ecf539262426f67a9f9c91b1359496d4206e58fcf5db6e29784727986"
+      },
+      "v04-GDPR07": {
+        "public_id": "case-4696c1bbcadcde52",
+        "packet_hash": "cee10bde5ee8d53abbe436c11ef57fb40c1416e09aa648612ffb83418332395b"
+      },
+      "v04-GDPR08": {
+        "public_id": "case-48c2734dcb673294",
+        "packet_hash": "9abe79eb5f5a91f0281c802c6dbc303350182debdcabed239700f723ea2d34ed"
+      },
+      "v04-GDPR09": {
+        "public_id": "case-da666a24e4dd4709",
+        "packet_hash": "d4f09c7c70acc9f930d381bf495d958edecd83baa9ed572b8ecc682329e354ab"
+      },
+      "v04-GDPR10": {
+        "public_id": "case-29cb05e6997da070",
+        "packet_hash": "e04bfa97231bf36d3ab0fa8f05b201b8ff5eacea7012d206ebf1b06c784f2406"
+      },
+      "v04-GDPR11": {
+        "public_id": "case-32d8d0d6f441cd59",
+        "packet_hash": "ca967a9d45aaafaa9d43a5a643bc2d84295faabeec7d5c4c773ac2db2d619aba"
+      },
+      "v04-GDPR12": {
+        "public_id": "case-c60555afebef4a95",
+        "packet_hash": "d010432c131dd74b7cd2292b7608652bcf7b2f8403b7a8ab66cb4d9e5077613b"
+      },
+      "v04-GDPR13": {
+        "public_id": "case-a0f5bdec7db54985",
+        "packet_hash": "14932a21dd3246968d020d67662d96be55a31802a39d921b3fa4b07661b0291a"
+      }
+    }
+  },
+  "reported_models": [
+    "deepseek-flash"
+  ],
+  "calls": {
+    "completed_stages": 20,
+    "invocations_in_saved_stages": 20
+  },
+  "tokens": {
+    "input_tokens": 208872,
+    "output_tokens": 16725
+  },
+  "counts": {
+    "scheduled": 65,
+    "valid_predictions": 1,
+    "correct_verdict": 1,
+    "located_known_route": 1
+  },
+  "by_project": {
+    "base": {
+      "scheduled": 13,
+      "valid_predictions": 1,
+      "correct_verdict": 1,
+      "located_known_route": 1,
+      "contradictions": 0,
+      "detected": 0,
+      "false_alarm": 0
+    },
+    "v01": {
+      "scheduled": 13
+    },
+    "v02": {
+      "scheduled": 13
+    },
+    "v03": {
+      "scheduled": 13
+    },
+    "v04": {
+      "scheduled": 13
+    }
+  },
+  "missing": [
+    "base-GDPR02",
+    "base-GDPR03",
+    "base-GDPR04",
+    "base-GDPR05",
+    "base-GDPR06",
+    "base-GDPR07",
+    "base-GDPR08",
+    "base-GDPR09",
+    "base-GDPR10",
+    "base-GDPR11",
+    "base-GDPR12",
+    "base-GDPR13",
+    "v01-GDPR01",
+    "v01-GDPR02",
+    "v01-GDPR03",
+    "v01-GDPR04",
+    "v01-GDPR05",
+    "v01-GDPR06",
+    "v01-GDPR07",
+    "v01-GDPR08",
+    "v01-GDPR09",
+    "v01-GDPR10",
+    "v01-GDPR11",
+    "v01-GDPR12",
+    "v01-GDPR13",
+    "v02-GDPR01",
+    "v02-GDPR02",
+    "v02-GDPR03",
+    "v02-GDPR04",
+    "v02-GDPR05",
+    "v02-GDPR06",
+    "v02-GDPR07",
+    "v02-GDPR08",
+    "v02-GDPR09",
+    "v02-GDPR10",
+    "v02-GDPR11",
+    "v02-GDPR12",
+    "v02-GDPR13",
+    "v03-GDPR01",
+    "v03-GDPR02",
+    "v03-GDPR03",
+    "v03-GDPR04",
+    "v03-GDPR05",
+    "v03-GDPR06",
+    "v03-GDPR07",
+    "v03-GDPR08",
+    "v03-GDPR09",
+    "v03-GDPR10",
+    "v03-GDPR11",
+    "v03-GDPR12",
+    "v03-GDPR13",
+    "v04-GDPR01",
+    "v04-GDPR02",
+    "v04-GDPR03",
+    "v04-GDPR04",
+    "v04-GDPR05",
+    "v04-GDPR06",
+    "v04-GDPR07",
+    "v04-GDPR08",
+    "v04-GDPR09",
+    "v04-GDPR10",
+    "v04-GDPR11",
+    "v04-GDPR12",
+    "v04-GDPR13"
+  ],
+  "confusion": [
+    {
+      "reference": "SUPPORTED",
+      "prediction": "SUPPORTED",
+      "count": 1
+    }
+  ]
+}

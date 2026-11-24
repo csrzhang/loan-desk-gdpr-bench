@@ -1,0 +1,111 @@
+{
+  "stage": "counterexample_review",
+  "input_hash": "fc6520b57f4097b643f59b3043d24bac767d339ec52352166343d85117c1cd45",
+  "seconds": 6.19,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 13110,
+        "output_tokens": 1168,
+        "total_tokens": 14278,
+        "input_token_details": {
+          "cache_read": 896,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "recommended_status": "SUPPORTED",
+    "counterexamples": [
+      "No in-scope counterexample found: a promotions-only choice cannot satisfy the insights gate because enabled() filters on the exact purpose string, and the report action/drain branch both query purpose 'insights'.",
+      "Withdrawal is honored: an 'off' row is appended and the latest-row read returns 0, and queued 'report' jobs are cancelled (store.py:0096-0098)."
+    ],
+    "unsupported_assumptions": [
+      "The draft's claim that the UI 'requires an explicit on submission' is accurate only at the form level; the server accepts any POST /preference with purpose=insights&value=on, which is still an affirmative recorded choice, so this does not undermine the predicate.",
+      "No runtime fact about a specific user's toggling is needed: the predicate is a code-level gate, and the scenario's 'initially off' state is satisfied by the absence of a choices row (enabled() returns False)."
+    ],
+    "anchors": [
+      {
+        "artifact": "store.py",
+        "start_line": 88,
+        "end_line": 90,
+        "role": "control",
+        "explanation": "enabled() selects the latest choices row for the exact (owner, purpose); no row => False, so insights default off and a promotions row cannot satisfy an insights query."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 92,
+        "end_line": 98,
+        "role": "operation",
+        "explanation": "preference() restricts purposes to insights/promotions/objection and values to on/off, persists int(value=='on') with VERSION and timestamp, and cancels queued report jobs on insights off."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 42,
+        "end_line": 42,
+        "role": "control",
+        "explanation": "choices schema stores owner, purpose, value, version, at — the versioned consent record."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 11,
+        "end_line": 11,
+        "role": "control",
+        "explanation": "VERSION constant written into each choice row."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 137,
+        "end_line": 139,
+        "role": "control",
+        "explanation": "drain 'report' branch executes insights processing only when enabled(owner,'insights')."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 165,
+        "end_line": 171,
+        "role": "control",
+        "explanation": "report action requires enabled(who,'insights') before queueing; promotion action uses eligible_campaign (promotions purpose only)."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 100,
+        "end_line": 103,
+        "role": "control",
+        "explanation": "eligible_campaign reads only 'promotions' and 'objection' purposes, never 'insights'."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 65,
+        "end_line": 83,
+        "role": "operation",
+        "explanation": "submit() validates only application fields and inserts the case; no consent/choices dependency, so core application remains available with insights off."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 33,
+        "end_line": 36,
+        "role": "trigger",
+        "explanation": "Separate per-purpose switch forms for insights, promotions and objection; enabling submits an explicit 'on' value."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 31,
+        "end_line": 32,
+        "role": "control",
+        "explanation": "Application form fields contain no consent checkbox requirement."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 85,
+        "end_line": 87,
+        "role": "trigger",
+        "explanation": "POST /preference routes purpose/value into store.preference, the entry point for the versioned choice record."
+      }
+    ],
+    "review_summary": "Confirmed. The draft's SUPPORTED status holds against the full case. Purpose separation is enforced by the exact (owner,purpose) lookup in enabled() (store.py:0088-0090); absence of a row yields off, satisfying the 'initially off' scenario and affirmative opt-in. preference() persists a versioned, timestamped record and restricts purposes/values (store.py:0092-0098, 0042, 0011). Insights processing is gated on purpose 'insights' both at queue time (store.py:0167-0168) and at drain time (store.py:0137-0139); campaign eligibility uses only 'promotions'/'objection' (store.py:0100-0103, 0140), so a promotions choice cannot authorize insights. Core application submission (store.py:0065-0083) and the dashboard form (views.py:0031-0032) have no consent dependency. Withdrawal is honored via appended 'off' rows and report-job cancellation. No in-scope counterexample found; the draft's missing-information boundary (no runtime toggling fact) is not decisive because the predicate is a code-level gate. Static source reading only; no execution performed."
+  }
+}

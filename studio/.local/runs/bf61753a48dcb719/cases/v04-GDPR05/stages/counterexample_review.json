@@ -1,0 +1,104 @@
+{
+  "stage": "counterexample_review",
+  "input_hash": "36389d3696f2065c635e5ae96ad387ef9dae30f613aafa5c7d9168ca6004b94b",
+  "seconds": 5.746,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 12746,
+        "output_tokens": 1020,
+        "total_tokens": 13766,
+        "input_token_details": {
+          "cache_read": 896,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "recommended_status": "SUPPORTED",
+    "counterexamples": [
+      "No in-scope counterexample found: the direct-collection form always renders NOTICE via notice() (views.py 0024-0025, 0031), and the verify action unconditionally writes the source-specific 'partner notice' event (store.py 0160) regardless of whether the applicant later opens the case, so the 'may leave it unopened' scenario variable does not defeat delivery."
+    ],
+    "unsupported_assumptions": [
+      "The draft's 'decisive_unknown' about whether the applicant opens the inbox is not decisive: the notice is recorded to the events table at verify time (store.py 0160), so delivery does not depend on opening. This is correctly noted but should not be framed as an open question.",
+      "The draft's caveat that 'the code does not itself trigger import or notice automatically' is not a defect: the scenario supplies the import as an officer action, and the verify path is the in-scope trigger.",
+      "Adequacy of NOTICE wording against Art. 13/14 content elements is a legal-completeness judgment; the source constant (store.py 0009) covers controller, purposes, consent basis, limits, rights, and retention, but this is not a code-behavior defect."
+    ],
+    "anchors": [
+      {
+        "artifact": "store.py",
+        "start_line": 9,
+        "end_line": 9,
+        "role": "operation",
+        "explanation": "NOTICE constant holds the scoped processing information (controller, purposes, consent basis, limits, rights, retention)."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 24,
+        "end_line": 25,
+        "role": "operation",
+        "explanation": "notice() renders NOTICE as a details block."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 31,
+        "end_line": 32,
+        "role": "control",
+        "explanation": "The /apply form fields begin with notice(), placing the notice at direct collection before submission."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 83,
+        "end_line": 84,
+        "role": "propagation",
+        "explanation": "POST /apply routes to store.submit."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 65,
+        "end_line": 83,
+        "role": "operation",
+        "explanation": "submit() records the application and an 'application' event citing the notice version."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 97,
+        "end_line": 98,
+        "role": "trigger",
+        "explanation": "POST /case/<id>/verify routes to store.action op 'verify'."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 157,
+        "end_line": 160,
+        "role": "operation",
+        "explanation": "verify writes a 'partner notice' event naming Income Registry and underwriting purpose plus NOTICE into the case inbox."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 51,
+        "end_line": 53,
+        "role": "propagation",
+        "explanation": "event() inserts the notice into the events table (case inbox store)."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 76,
+        "end_line": 79,
+        "role": "propagation",
+        "explanation": "Case history renders events, making the partner notice retrievable in the case inbox."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 118,
+        "end_line": 122,
+        "role": "operation",
+        "explanation": "access() returns processing_information=NOTICE and the timeline events."
+      }
+    ],
+    "review_summary": "Confirmed SUPPORTED. Direct collection: the /apply form includes notice() rendering NOTICE (views.py 0024-0025, 0031) before submission via store.submit (app.py 0083-0084; store.py 0065-0083). Indirect import: the staff 'verify' action writes a source-specific 'partner notice' event naming the Income Registry and underwriting purpose plus NOTICE into the case inbox (store.py 0157-0160), rendered in the case history (views.py 0076, 0079) and retrievable via store.access (store.py 0120). The notice is recorded at import time regardless of whether the applicant opens the case, satisfying the immediate-delivery feasible means. No in-scope counterexample found. Static source reading only; no execution performed."
+  }
+}

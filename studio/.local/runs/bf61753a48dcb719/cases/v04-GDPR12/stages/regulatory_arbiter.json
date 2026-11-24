@@ -1,0 +1,97 @@
+{
+  "stage": "regulatory_arbiter",
+  "input_hash": "f5c7388c8cdf0516e55214fbb8ccb769b674b5b2c6644515c1415fbb8b4a3a9d",
+  "seconds": 6.009,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 13997,
+        "output_tokens": 1379,
+        "total_tokens": 15376,
+        "input_token_details": {
+          "cache_read": 1152,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "case_id": "case-c60555afebef4a95",
+    "rule_id": "GDPR12",
+    "status": "SUPPORTED",
+    "short_explanation": "Both the ordinary case route (/case/{id}) and the offer download (/case/{id}/offer) resolve the case through store.get_case, which selects the row only WHERE id=? AND (owner=? OR officer=?) and raises 404 otherwise; unauthenticated requests are rejected before case routing. No in-scope counterexample exists in the supplied snapshot.",
+    "detailed_explanation": "Code facts: In app.py:0068-0070 an empty session principal (`who`) is limited to GET / and otherwise raises 401, so no case route is reachable without authentication. Authenticated requests reach the /case/{id}[/op] branch at app.py:0092-0095, which parses the id and calls store.get_case(db, who, cid) before any branch. store.py:0055-0058 executes SELECT * FROM cases WHERE id=? AND (owner=? OR officer=?) with `who` bound to both placeholders and raises Problem(\"Case unavailable.\",404) when no row matches. The ordinary case view (op is None) at app.py:0110-0112 builds the detail page from store.access on that already-gated row (store.py:0118-0122). The offer download at app.py:0100-0103 runs after the same gate; its only added condition is stage in (\"accepted\",\"offered\") and not restricted (app.py:0102), and the payload comes from store.offer (store.py:0111-0112) on the gated case object. The owner-only check at app.py:0105 applies to access/portable, not to the ordinary case or offer routes. The dashboard listing at app.py:0077 filters WHERE c.owner=? OR c.officer=?, matching the same principal set.\n\nRequirement: The named obligation requires that the ordinary case route and the offer download route be reachable only by the authenticated owner or the assigned officer, and that another borrower or an unassigned officer cannot access either resource. The scenario stipulates a synthetic EU-established private controller and identifies disclosure via these two ordinary routes as the selected risk; permitted principals are the owner and the assigned officer. No exception in the supplied source permits any other principal to reach these routes.\n\nJustification: The single authorization gate store.get_case restricts case retrieval to owner or assigned officer and returns 404 otherwise, and it precedes both the ordinary case branch and the offer branch. A non-owner borrower (e.g. ben on alice's case) or an unassigned officer (e.g. sam on morgan's case) fails the WHERE clause and receives 404 before either branch executes; the offer branch's stage/restriction condition is an availability gate, not an access exception, and cannot be reached by a non-permitted principal. The owner-only check at app.py:0105 does not weaken the offer route because it governs access/portable only. No supported in-scope counterexample appears in the supplied snapshot, so the verdict is SUPPORTED. This is a static reading of the supplied artifacts; no code was executed.",
+    "evidence": [
+      {
+        "artifact": "app.py",
+        "start_line": 68,
+        "end_line": 70,
+        "role": "control",
+        "explanation": "Empty `who` restricts to GET / and otherwise raises 401, so unauthenticated requests cannot reach case routes."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 92,
+        "end_line": 95,
+        "role": "trigger",
+        "explanation": "Both /case/{id} and /case/{id}/offer are parsed and resolved through store.get_case(db, who, cid) before any branch."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 55,
+        "end_line": 58,
+        "role": "control",
+        "explanation": "Decisive authorization gate: row selected only WHERE id=? AND (owner=? OR officer=?), with `who` bound to both; otherwise 404. Denies other borrowers and unassigned officers."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 110,
+        "end_line": 112,
+        "role": "operation",
+        "explanation": "Ordinary case route (op is None) served only after the get_case gate, with no further principal check and no bypass path."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 118,
+        "end_line": 122,
+        "role": "propagation",
+        "explanation": "access() derives timeline/jobs/preferences from the already-gated case object."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 100,
+        "end_line": 103,
+        "role": "operation",
+        "explanation": "Offer download served after the gate; the added stage/restriction condition is availability, not an access exception."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 111,
+        "end_line": 112,
+        "role": "propagation",
+        "explanation": "offer() returns case id, email, amount and term from the case object already restricted by get_case."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 105,
+        "end_line": 106,
+        "role": "control",
+        "explanation": "Contrast: owner-only check applies to access/portable, not to the ordinary case or offer routes; confirms the offer route relies solely on get_case."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 77,
+        "end_line": 77,
+        "role": "control",
+        "explanation": "Dashboard listing filters by owner or officer, consistent with the same permitted principal set."
+      }
+    ],
+    "missing_information": [
+      "No runtime execution or oracle was used; assessment is static reading of the supplied artifacts.",
+      "Behavior of code not present in the supplied artifacts cannot be assessed; no upstream or hidden implementation is inferred.",
+      "Session fixation/expiry beyond the shown 8-hour expiry and in-memory session map is outside the named obligation and not evaluated."
+    ]
+  }
+}

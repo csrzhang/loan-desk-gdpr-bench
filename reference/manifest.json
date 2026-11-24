@@ -1,0 +1,73 @@
+{
+  "projects": {
+    "base": {
+      "operators": [],
+      "source_sha256": "667522da007ec0fa84d09681837d719aa4b17dabe2d393f1ac1f09af38d58c01",
+      "files": {
+        "app.py": "c2848867ea9bd6473a16b50cfbbe676b058c4a45387fa7f2166b7cba4c3071cd",
+        "store.py": "3ca0eca29987384385721a1b2a073e88082dde1b45fff7cf6a2b69fd27082d10",
+        "style.css": "a053678c7a0e35ce3725def826e18ee1ea3146e40e8a3f71df51b3d658f6442d",
+        "views.py": "70b7e9d1aed0e2504203e7a06d43eb6860f0cf23322c4d2548e3eb71e27b72b8"
+      }
+    },
+    "v01": {
+      "operators": [
+        "enqueue-only-consent",
+        "omit-portable-term"
+      ],
+      "source_sha256": "c4b1fd7445c8aaf32038dce6494836ea337d19eb24a9b6cdbadf500ac0fdab0c",
+      "files": {
+        "app.py": "c2848867ea9bd6473a16b50cfbbe676b058c4a45387fa7f2166b7cba4c3071cd",
+        "store.py": "b4a2a278c1661cf62fd8a38e0daac9d7a691f40580696f23813902c32b5c84b6",
+        "style.css": "a053678c7a0e35ce3725def826e18ee1ea3146e40e8a3f71df51b3d658f6442d",
+        "views.py": "70b7e9d1aed0e2504203e7a06d43eb6860f0cf23322c4d2548e3eb71e27b72b8"
+      }
+    },
+    "v02": {
+      "operators": [
+        "acknowledge-only-correction",
+        "record-only-reversal"
+      ],
+      "source_sha256": "b85cd10acda88b7216184330b2a114cff8e991599ad1e72b3fa250050456d887",
+      "files": {
+        "app.py": "c2848867ea9bd6473a16b50cfbbe676b058c4a45387fa7f2166b7cba4c3071cd",
+        "store.py": "a8d89f9f9baa5586209c71cbff7dbb62d13a047a10e69917c8ce2a9670e5341a",
+        "style.css": "a053678c7a0e35ce3725def826e18ee1ea3146e40e8a3f71df51b3d658f6442d",
+        "views.py": "70b7e9d1aed0e2504203e7a06d43eb6860f0cf23322c4d2548e3eb71e27b72b8"
+      }
+    },
+    "v03": {
+      "operators": [
+        "enqueue-only-consent",
+        "score-during-restriction",
+        "record-only-reversal"
+      ],
+      "source_sha256": "d46e7b40a66a06625a38937bd1e377a4d0f703bdc9289086c4a3f8523669f606",
+      "files": {
+        "app.py": "c2848867ea9bd6473a16b50cfbbe676b058c4a45387fa7f2166b7cba4c3071cd",
+        "store.py": "125badb1fd582f1b1a22bc2df2897d5d294a34141351ad014f75cb2aebcf273a",
+        "style.css": "a053678c7a0e35ce3725def826e18ee1ea3146e40e8a3f71df51b3d658f6442d",
+        "views.py": "70b7e9d1aed0e2504203e7a06d43eb6860f0cf23322c4d2548e3eb71e27b72b8"
+      }
+    },
+    "v04": {
+      "operators": [
+        "acknowledge-only-correction",
+        "score-during-restriction",
+        "omit-portable-term"
+      ],
+      "source_sha256": "7879f8efeafc0a6a87de2a4aec4b9fa52b3c4d668d5d24c48ab6d91065145bc8",
+      "files": {
+        "app.py": "c2848867ea9bd6473a16b50cfbbe676b058c4a45387fa7f2166b7cba4c3071cd",
+        "store.py": "df5e71ebce31a422f33d541987a6caf26de88146121703c82db0b8c250056edb",
+        "style.css": "a053678c7a0e35ce3725def826e18ee1ea3146e40e8a3f71df51b3d658f6442d",
+        "views.py": "70b7e9d1aed0e2504203e7a06d43eb6860f0cf23322c4d2548e3eb71e27b72b8"
+      }
+    }
+  },
+  "validation": {
+    "observe.py": "435902528efdd9115fc7f7b209907882714901f67ac82974066083fb543315e2",
+    "test_contracts.py": "c9a2080a54abf765f3329a05a7c25ede2eb9526a1c776afb5a87899375435c19"
+  },
+  "scope_sha256": "71a0276dacef4451b8a8905e499754691f0864dcee2ff24693ec671fd6b3be17"
+}

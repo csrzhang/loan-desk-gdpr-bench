@@ -1,0 +1,48 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "e40f774560736a313f3be14dbbdc3517b813837a08568f7f5a450b3edb3c3343",
+  "seconds": 4.818,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9880,
+        "output_tokens": 689,
+        "total_tokens": 10569,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "On erasure of an eligible abandoned application, the case row and all business-retrievable copies (summary, events, pending jobs) are deleted, while an unrelated active case remains retrievable, and later job replay (drain) cannot recreate or resurrect the erased target.",
+    "applicability_facts": [
+      "Scenario: the abandoned application is no longer necessary; no mandatory retention, prior external disclosure or other exception applies (GDPR Art. 17(1)(a) ground present, Art. 17(3) exceptions absent).",
+      "Scenario: an unrelated active case remains necessary and must stay available.",
+      "store.py:0210-0212 erase action requires stage=='abandoned' and executes DELETE FROM cases WHERE id=?",
+      "store.py:0039-0044 summaries, events and jobs reference cases with ON DELETE CASCADE, and store.py:0026 enables PRAGMA foreign_keys=ON, so dependent copies are removed with the case row.",
+      "store.py:0124-0143 drain selects jobs by cid from the jobs table; with the case and its jobs deleted there is no row to replay.",
+      "store.py:0055-0058 get_case scopes access to owner/officer, so an unrelated active case is unaffected by deleting another cid."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "Art. 17(3) exceptions (retention obligation, legal claim, etc.) are stipulated absent in this fixture; no code path implements a retention override for erase.",
+      "Erase is limited to stage=='abandoned' (store.py:0211); non-abandoned cases are out of scope of this obligation."
+    ],
+    "required_controls": [
+      "Eligibility gate: erase only when stage=='abandoned' (store.py:0211).",
+      "Deletion of the case row (store.py:0212) with foreign-key cascade removing summaries, events and jobs (store.py:0039-0044, 0026).",
+      "No residual job rows for the erased cid, so drain (store.py:0124-0143) cannot re-emit events or change stage for the target.",
+      "Isolation: unrelated active case remains retrievable via get_case/dashboard (store.py:0055-0058, app.py:0077)."
+    ],
+    "assessment_limits": [
+      "No execution, database inspection or replay was performed; conclusions are from static source reading only.",
+      "Cascade deletion depends on PRAGMA foreign_keys=ON being effective on the connection used for the erase transaction (store.py:0026); not verified at runtime.",
+      "Copies outside the modeled tables (e.g., receiver payloads, choices, logs, backups) are not addressed by the erase path and are outside the named predicate's scope.",
+      "Compliance is not decided from the rule text alone; only the supplied source coordinates are assessed."
+    ]
+  }
+}

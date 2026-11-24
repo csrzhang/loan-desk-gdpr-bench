@@ -1,0 +1,72 @@
+{
+  "stage": "locus_finder",
+  "input_hash": "63cb0369d4d09a229ac0bd40ce40dcf8c61b03ac5e19200ca61f4c7fa0fe92ca",
+  "seconds": 4.078,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 10713,
+        "output_tokens": 738,
+        "total_tokens": 11451,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "loci": [
+      {
+        "artifact": "store.py",
+        "start_line": 88,
+        "end_line": 98,
+        "rationale": "preference() records the insights on/off choice and, on withdrawal, cancels queued 'report' jobs scoped to the withdrawing owner's cases; enabled() reads the latest choice row, making withdrawal the effective state."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 124,
+        "end_line": 143,
+        "rationale": "drain() re-checks enabled(owner,'insights') at execution time before generating a report, so a withdrawn owner's queued or re-queued report is not produced, while the unaffected borrower's report still runs; restricted cases are skipped."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 165,
+        "end_line": 171,
+        "rationale": "The 'report' action requires insights enabled before queueing, so opt-in is the precondition for queuing a report job."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 9,
+        "end_line": 9,
+        "rationale": "NOTICE informs the user beforehand that insights and promotions each require separate optional consent, can be switched off as easily as on, and that withdrawal applies to future processing."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 33,
+        "end_line": 36,
+        "rationale": "Renders the privacy-choices section with the notice and a single symmetric 'Switch off'/'Switch on' form per purpose via the same /preference route, satisfying equal-ease withdrawal."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 72,
+        "end_line": 75,
+        "rationale": "Owner-facing queue controls: 'Queue repayment report' and 'Process pending tasks' (drain), showing the entrypoint that triggers report generation and the drain that must respect withdrawal."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 85,
+        "end_line": 90,
+        "rationale": "Routes /preference to store.preference and case actions (including drain) to store.action, connecting the UI toggles and drain to the assessed logic."
+      }
+    ],
+    "path_summary": "Opt-in is recorded via /preference -> store.preference (choices row) and a report job is queued via the case 'report' action (store.action, gated on enabled insights). Withdrawal uses the same /preference route with value 'off', which inserts a new choice row and cancels queued 'report' jobs for that owner's cases only. On each drain, store.drain re-checks enabled(owner,'insights') before generating a report, so the withdrawing borrower's queued/re-queued report is not produced, while the other borrower's consent remains on and their report is generated. Prior information is supplied by NOTICE rendered in the privacy-choices section.",
+    "missing_boundaries": [
+      "No explicit retry mechanism is modeled; only queued-state cancellation plus the execution-time consent re-check cover re-drains. Retry semantics beyond re-draining queued jobs are unavailable.",
+      "No runtime execution was performed; conclusions are static readings of the supplied source.",
+      "Restriction (restricted flag) is a separate control and not the withdrawal mechanism assessed here."
+    ]
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "case_id": "v04-GDPR12",
+  "verdict": "SUPPORTED",
+  "explanation": "Code facts: In app.py:0068-0070 an empty session principal (`who`) is limited to GET / and otherwise raises 401, so no case route is reachable without authentication. Authenticated requests reach the /case/{id}[/op] branch at app.py:0092-0095, which parses the id and calls store.get_case(db, who, cid) before any branch. store.py:0055-0058 executes SELECT * FROM cases WHERE id=? AND (owner=? OR officer=?) with `who` bound to both placeholders and raises Problem(\"Case unavailable.\",404) when no row matches. The ordinary case view (op is None) at app.py:0110-0112 builds the detail page from store.access on that already-gated row (store.py:0118-0122). The offer download at app.py:0100-0103 runs after the same gate; its only added condition is stage in (\"accepted\",\"offered\") and not restricted (app.py:0102), and the payload comes from store.offer (store.py:0111-0112) on the gated case object. The owner-only check at app.py:0105 applies to access/portable, not to the ordinary case or offer routes. The dashboard listing at app.py:0077 filters WHERE c.owner=? OR c.officer=?, matching the same principal set.\n\nRequirement: The named obligation requires that the ordinary case route and the offer download route be reachable only by the authenticated owner or the assigned officer, and that another borrower or an unassigned officer cannot access either resource. The scenario stipulates a synthetic EU-established private controller and identifies disclosure via these two ordinary routes as the selected risk; permitted principals are the owner and the assigned officer. No exception in the supplied source permits any other principal to reach these routes.\n\nJustification: The single authorization gate store.get_case restricts case retrieval to owner or assigned officer and returns 404 otherwise, and it precedes both the ordinary case branch and the offer branch. A non-owner borrower (e.g. ben on alice's case) or an unassigned officer (e.g. sam on morgan's case) fails the WHERE clause and receives 404 before either branch executes; the offer branch's stage/restriction condition is an availability gate, not an access exception, and cannot be reached by a non-permitted principal. The owner-only check at app.py:0105 does not weaken the offer route because it governs access/portable only. No supported in-scope counterexample appears in the supplied snapshot, so the verdict is SUPPORTED. This is a static reading of the supplied artifacts; no code was executed.",
+  "evidence": [
+    {
+      "path": "app.py",
+      "start_line": 68,
+      "end_line": 70,
+      "quote": "            elif not who:\n                require(path==\"/\" and method==\"GET\",\"Sign in to continue.\",401)\n                body=views.login()",
+      "supports": "Empty `who` restricts to GET / and otherwise raises 401, so unauthenticated requests cannot reach case routes."
+    },
+    {
+      "path": "app.py",
+      "start_line": 92,
+      "end_line": 95,
+      "quote": "                        route=re.fullmatch(r\"/case/(\\d{1,18})(?:/([a-z-]+))?\",path)\n                        require(route,\"Page unavailable.\",404)\n                        cid=int(route[1])\n                        c=store.get_case(db,who,cid)",
+      "supports": "Both /case/{id} and /case/{id}/offer are parsed and resolved through store.get_case(db, who, cid) before any branch."
+    },
+    {
+      "path": "store.py",
+      "start_line": 55,
+      "end_line": 58,
+      "quote": "def get_case(db, who, cid):\n    row = db.execute(\"SELECT * FROM cases WHERE id=? AND (owner=? OR officer=?)\",(cid,who,who)).fetchone()\n    require(row, \"Case unavailable.\", 404)\n    return dict(row)",
+      "supports": "Decisive authorization gate: row selected only WHERE id=? AND (owner=? OR officer=?), with `who` bound to both; otherwise 404. Denies other borrowers and unassigned officers."
+    },
+    {
+      "path": "app.py",
+      "start_line": 110,
+      "end_line": 112,
+      "quote": "                        elif method==\"GET\" and op is None:\n                            a=store.access(db,c)\n                            body=views.detail(c,token,who,a[\"timeline\"],a[\"jobs\"])",
+      "supports": "Ordinary case route (op is None) served only after the get_case gate, with no further principal check and no bypass path."
+    },
+    {
+      "path": "store.py",
+      "start_line": 118,
+      "end_line": 122,
+      "quote": "def access(db,c):\n    cid=c[\"id\"]\n    return {\"application\":c,\"processing_information\":NOTICE,\"timeline\":rows(db,\"SELECT kind,body,at FROM events WHERE cid=? ORDER BY id\",(cid,)),\n            \"jobs\":rows(db,\"SELECT kind,state FROM jobs WHERE cid=? ORDER BY id\",(cid,)),\n            \"preferences\":rows(db,\"SELECT purpose,value,version,at FROM choices WHERE owner=? ORDER BY id\",(c[\"owner\"],))}",
+      "supports": "access() derives timeline/jobs/preferences from the already-gated case object."
+    },
+    {
+      "path": "app.py",
+      "start_line": 100,
+      "end_line": 103,
+      "quote": "                        elif method==\"GET\" and op in (\"access\",\"portable\",\"offer\"):\n                            if op==\"offer\":\n                                require(c[\"stage\"] in (\"accepted\",\"offered\") and not c[\"restricted\"],\"Offer unavailable.\",409)\n                                item=store.offer(db,c)",
+      "supports": "Offer download served after the gate; the added stage/restriction condition is availability, not an access exception."
+    },
+    {
+      "path": "store.py",
+      "start_line": 111,
+      "end_line": 112,
+      "quote": "def offer(db,c):\n    return {\"case\":c[\"id\"],\"to\":c[\"email\"],\"amount_eur\":c[\"amount\"],\"term_months\":c[\"term\"]}",
+      "supports": "offer() returns case id, email, amount and term from the case object already restricted by get_case."
+    },
+    {
+      "path": "app.py",
+      "start_line": 105,
+      "end_line": 106,
+      "quote": "                                require(who==c[\"owner\"],\"Borrower required.\",403)\n                                item=store.access(db,c) if op==\"access\" else store.portable(c)",
+      "supports": "Contrast: owner-only check applies to access/portable, not to the ordinary case or offer routes; confirms the offer route relies solely on get_case."
+    },
+    {
+      "path": "app.py",
+      "start_line": 77,
+      "end_line": 77,
+      "quote": "                        cases=store.rows(db,\"SELECT c.id,c.stage,s.title FROM cases c JOIN summaries s ON s.cid=c.id WHERE c.owner=? OR c.officer=? ORDER BY c.id DESC\",(who,who))",
+      "supports": "Dashboard listing filters by owner or officer, consistent with the same permitted principal set."
+    }
+  ]
+}

@@ -1,0 +1,94 @@
+{
+  "stage": "counterexample_review",
+  "input_hash": "d3466e6050ba033ebd65facce347fafa8b0ba9828e28771d699856ae995fa86d",
+  "seconds": 5.297,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 12450,
+        "output_tokens": 1019,
+        "total_tokens": 13469,
+        "input_token_details": {
+          "cache_read": 896,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "recommended_status": "SUPPORTED",
+    "counterexamples": [],
+    "unsupported_assumptions": [
+      "The draft's claim that 'no other consumer of confirmed exists' should be read as scoped to marketing; cases.confirmed is also written by notify-release (store.py:0181) and displayed in the case detail view (views.py:0050), which are not marketing flows and do not defeat the predicate.",
+      "The draft treats the offer payload as 'marketing-adjacent'; strictly, offer() is the contract offer output, not a marketing selection/delivery path, so it is at most corroborating rather than decisive."
+    ],
+    "anchors": [
+      {
+        "artifact": "store.py",
+        "start_line": 157,
+        "end_line": 160,
+        "role": "trigger",
+        "explanation": "verify writes the partner band into cases.confirmed and logs it as supplied 'for underwriting', establishing the purpose-bound field."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 131,
+        "end_line": 135,
+        "role": "operation",
+        "explanation": "The only read of c['confirmed'] is the automatic score/underwriting decision (band=c['confirmed'] or c['income']); no marketing branch reads it."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 100,
+        "end_line": 103,
+        "role": "control",
+        "explanation": "eligible_campaign selects audience on owner, restricted=0, stage!='abandoned' and promotions/objection choices only; income and confirmed are not referenced."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 105,
+        "end_line": 109,
+        "role": "propagation",
+        "explanation": "campaign() queues promotion jobs solely through eligible_campaign, so officer-driven audience selection cannot reach the confirmed band."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 140,
+        "end_line": 142,
+        "role": "operation",
+        "explanation": "Promotion delivery is gated by eligible_campaign and emits a generic message with no income band."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 165,
+        "end_line": 171,
+        "role": "control",
+        "explanation": "Owner-initiated promotion action is gated by eligible_campaign (permitted fields only), not by the confirmed band."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 92,
+        "end_line": 98,
+        "role": "control",
+        "explanation": "Preference store defines the permitted promotions/objection subscription fields and cancels queued promotions on opt-out/objection."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 111,
+        "end_line": 112,
+        "role": "propagation",
+        "explanation": "Offer payload carries case id, email, amount, term only; the confirmed band is not propagated into this output."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 179,
+        "end_line": 182,
+        "role": "exception",
+        "explanation": "notify-release also writes cases.confirmed, but only as a restriction-release verification step, not a marketing path; it does not create a marketing use of the band."
+      }
+    ],
+    "review_summary": "Confirmed after independent inspection. Applicability is present: the scenario supplies an opted-in subscriber with a partner-confirmed band and no compatible marketing purpose or new legal basis. In the source, the band enters cases.confirmed via verify (store.py:0157-0160) and is read only in the automatic score/underwriting branch (store.py:0131-0135). Marketing audience selection (eligible_campaign, store.py:0100-0103) and delivery (drain promotion branch store.py:0140-0142; action promotion store.py:0165-0171) use only owner identity, promotions/objection choices and case eligibility (restricted, stage); promotion content and the offer payload (store.py:0111-0112) omit the band. I searched for an in-scope counterexample: no marketing path reads income or confirmed, and the only other write to confirmed (notify-release, store.py:0179-0182) is a restriction-release verification, not marketing. The draft's 'no other consumer' phrasing is slightly overbroad (confirmed is also displayed in views.py:0050 and written at store.py:0181), but neither is a marketing use, so the predicate holds. Static review only; no code was executed."
+  }
+}

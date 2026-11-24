@@ -1,0 +1,106 @@
+{
+  "stage": "regulatory_arbiter",
+  "input_hash": "8d14e033caa7109e701bfa4f0b5e5ada31cfc9d7765c141a14de81f95431a93b",
+  "seconds": 7.392,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 14551,
+        "output_tokens": 1588,
+        "total_tokens": 16139,
+        "input_token_details": {
+          "cache_read": 1152,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "case_id": "case-c7d0eb87b7bd14a6",
+    "rule_id": "GDPR06",
+    "status": "SUPPORTED",
+    "short_explanation": "GET /case/<cid>/access is owner-gated (app.py:0105) after a single-case fetch filtered by id and owner/officer (store.py:0056); store.access (store.py:0118-0122) returns the case row, NOTICE processing information, events and jobs scoped by cid, and preferences scoped to the case owner only, so the other applicant's data is structurally excluded. Partner-source and decision events flow into the timeline.",
+    "detailed_explanation": "Code facts: The session identity is resolved from the cookie into `who` (app.py:0044-0047). The route regex `/case/(\\d{1,18})(?:/([a-z-]+))?` (app.py:0092) yields cid and op; `store.get_case(db,who,cid)` selects `WHERE id=? AND (owner=? OR officer=?)` (store.py:0055-0058), so a foreign borrower's cid raises 404 \"Case unavailable.\" and an officer session resolves the row. In the GET branch for op in (\"access\",\"portable\",\"offer\") (app.py:0100-0106), non-offer ops require `who==c[\"owner\"]` (403 \"Borrower required.\") before `store.access(db,c)`. `access()` (store.py:0118-0122) returns `application` = the single case row (owner, officer, email, amount, term, income, confirmed, route, stage, restricted), `processing_information` = NOTICE (store.py:0009), `timeline` = `SELECT kind,body,at FROM events WHERE cid=?`, `jobs` = `SELECT kind,state FROM jobs WHERE cid=?`, and `preferences` = `SELECT purpose,value,version,at FROM choices WHERE owner=?` bound to `c[\"owner\"]`. Partner-source text is written as a per-cid event (store.py:0160), automatic decisions as per-cid events (store.py:0135), and human review decisions as per-cid events (store.py:0196). The response is JSON with `Content-Disposition: attachment` (app.py:0107-0109) and `Cache-Control: no-store` (app.py:0030).\n\nRequirement: Article 15(1), (3), (4) as scoped: on a GET to /case/<cid>/access by the authenticated borrower, the service must return a copy for that single case containing supplied and derived data, processing information, the partner source, the decision, related events and preferences, and must not include another applicant's data. The scenario supplies the trigger (authenticated applicant requests one specified case; another applicant has separate data in the same database). No restriction/erasure exception is applied to the access route in the supplied source.\n\nJustification: Every in-scope control is evidenced. Authorization: app.py:0105 admits only the case owner; get_case (store.py:0056) already prevents resolving another applicant's case, so no cross-applicant path to store.access exists. Isolation: events and jobs are keyed by the single cid (store.py:0120-0121) and preferences by `c[\"owner\"]`, which equals the authenticated borrower (store.py:0122); no cross-case join exists. Content: the case row carries supplied and derived fields (stage, route, confirmed), NOTICE is embedded as processing information, and partner-source (0160), automatic-decision (0135) and review-decision (0196) events appear in the timeline. Delivery is a non-cached JSON attachment. No supported in-scope counterexample was found, and no decisive unresolved dependency remains for the named predicate; the copy's completeness is asserted only for the fields enumerated in store.access (summaries.title and receiver payloads are not included, but they are outside the enumerated predicate).",
+    "evidence": [
+      {
+        "artifact": "app.py",
+        "start_line": 44,
+        "end_line": 47,
+        "role": "propagation",
+        "explanation": "Session user 'who' resolved from the cookie; basis for authorization and owner scoping."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 100,
+        "end_line": 106,
+        "role": "control",
+        "explanation": "Access branch requires who==c['owner'] (403 'Borrower required.' otherwise) before store.access; officer sessions refused."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 107,
+        "end_line": 109,
+        "role": "operation",
+        "explanation": "Copy returned as application/json attachment."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 30,
+        "end_line": 30,
+        "role": "control",
+        "explanation": "Cache-Control no-store on responses."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 55,
+        "end_line": 58,
+        "role": "control",
+        "explanation": "get_case selects a single row WHERE id=? AND (owner=? OR officer=?); prevents cross-applicant case retrieval."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 118,
+        "end_line": 122,
+        "role": "operation",
+        "explanation": "access() assembles the copy: case row, NOTICE, events/jobs by cid, preferences by case owner only."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 9,
+        "end_line": 9,
+        "role": "operation",
+        "explanation": "NOTICE text supplied as processing_information."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 135,
+        "end_line": 135,
+        "role": "propagation",
+        "explanation": "Automatic decision event recorded per cid, surfaced in the timeline."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 160,
+        "end_line": 160,
+        "role": "propagation",
+        "explanation": "Partner source (Income Registry band) event recorded per cid, surfaced in the timeline."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 196,
+        "end_line": 196,
+        "role": "propagation",
+        "explanation": "Human review decision event recorded per cid, surfaced in the timeline."
+      }
+    ],
+    "missing_information": [
+      "No runtime execution or observation was performed; findings are static reading of the supplied snapshot.",
+      "The scenario's 'verified borrower' status is not modeled as a separate verification flag; it is treated as the authenticated owner session.",
+      "Completeness of the copy is asserted only for the fields enumerated in store.access; summaries.title and receiver payloads are not included in the access copy.",
+      "No third-party-rights redaction mechanism exists; isolation relies on per-cid/per-owner queries rather than redaction.",
+      "No conclusion is drawn about other GDPR articles or about upstream/other versions of the code."
+    ]
+  }
+}

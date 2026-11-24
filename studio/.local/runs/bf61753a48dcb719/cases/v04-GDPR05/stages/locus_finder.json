@@ -1,0 +1,80 @@
+{
+  "stage": "locus_finder",
+  "input_hash": "26851ac94af9b2f44b8ec188eb83ac15f932c7423a08a05fb7d1f2c6dff5026d",
+  "seconds": 4.177,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 10592,
+        "output_tokens": 827,
+        "total_tokens": 11419,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "loci": [
+      {
+        "artifact": "store.py",
+        "start_line": 9,
+        "end_line": 9,
+        "rationale": "NOTICE constant: the scoped processing information (controller, purposes, consent basis, limits, rights) that must be made available at collection and in the source-specific import notice."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 24,
+        "end_line": 25,
+        "rationale": "notice() renders NOTICE as a details block; the means by which the information is made available in the UI."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 31,
+        "end_line": 32,
+        "rationale": "Direct collection: the /apply form fields include notice() before submission, so the notice is presented at collection."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 83,
+        "end_line": 84,
+        "rationale": "Entrypoint for direct collection: POST /apply routes to store.submit."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 65,
+        "end_line": 83,
+        "rationale": "submit() stores the application and records the 'application' event referencing the notice version; the collection-side state change."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 97,
+        "end_line": 98,
+        "rationale": "Entrypoint for the indirect import: POST /case/<id>/verify routes to store.action op 'verify'."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 157,
+        "end_line": 160,
+        "rationale": "verify action writes the source-specific 'partner notice' event (Income Registry, underwriting purpose, plus NOTICE) into the case inbox — the Art. 14 notice delivery."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 76,
+        "end_line": 79,
+        "rationale": "Downstream use: case history renders events (including the partner notice) in the case inbox, making the notice retrievable by the applicant."
+      }
+    ],
+    "path_summary": "Direct collection: POST /apply (app.py 0083-0084) -> store.submit (store.py 0065-0083) records the case and an 'application' event citing the notice version; the NOTICE (store.py 0009) is presented on the application form via views.notice() (views.py 0024-0025, 0031). Indirect import: officer POST /case/<id>/verify (app.py 0097-0098) -> store.action 'verify' (store.py 0157-0160) writes a 'partner notice' event naming the Income Registry and underwriting purpose plus NOTICE into the case inbox; the event is rendered in the case history (views.py 0076, 0079) and NOTICE is also returned as processing_information by store.access (store.py 0120). Both notice paths are present in source; the import notice is recorded to the inbox regardless of whether the applicant opens the case.",
+    "missing_boundaries": [
+      "No execution, browsing or retrieval was performed; assessment is static source reading only.",
+      "Whether the applicant opens the case inbox is a scenario variable; the code records the notice to the inbox but delivery timing/feasibility beyond recording is not verifiable from source.",
+      "The verify notice is only produced when an officer performs 'verify'; the code does not itself trigger the import or the notice automatically.",
+      "Adequacy of NOTICE wording against Art. 13(1)-(2)/14(1)-(3) content elements is judged only from the constant text, not from legal interpretation of completeness.",
+      "No claim is made about upstream or hidden implementation."
+    ]
+  }
+}

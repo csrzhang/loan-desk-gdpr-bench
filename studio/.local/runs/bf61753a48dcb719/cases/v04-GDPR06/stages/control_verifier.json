@@ -1,0 +1,165 @@
+{
+  "stage": "control_verifier",
+  "input_hash": "c201743db665c3fc54817d5a18960ad125ad766c7f8e83fae8490b87cf2b5f88",
+  "seconds": 6.837,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 12017,
+        "output_tokens": 1544,
+        "total_tokens": 13561,
+        "input_token_details": {
+          "cache_read": 1152,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "checks": [
+      {
+        "target": "GET /case/<cid>/access owner-only authorization (app.py:0100-0106)",
+        "required_behavior": "Only the authenticated owner (verified borrower) of the specified case may obtain the access copy; other applicants are refused.",
+        "observed_code_behavior": "The access branch requires who==c['owner'] before calling store.access; a non-owner session raises Problem 403 'Borrower required.'. The session identity 'who' is resolved from the cookie (app.py:0044-0047).",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "app.py",
+            "start_line": 44,
+            "end_line": 47,
+            "role": "propagation",
+            "explanation": "Session user 'who' resolved from cookie, used for authorization and scoping."
+          },
+          {
+            "artifact": "app.py",
+            "start_line": 100,
+            "end_line": 106,
+            "role": "control",
+            "explanation": "Access branch requires who==c['owner'] (403 otherwise) before store.access."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Case scoping in store.get_case (store.py:0055-0058)",
+        "required_behavior": "The copy must be limited to the single requested case cid, not other cases.",
+        "observed_code_behavior": "get_case selects the row WHERE id=? AND (owner=? OR officer=?), returning only the single requested case row; combined with the owner check, the borrower can only reach their own case.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 55,
+            "end_line": 58,
+            "role": "control",
+            "explanation": "Single-row selection filtered by id and owner/officer."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Event and job scoping by cid (store.py:0120-0121)",
+        "required_behavior": "Related events and jobs included must belong only to the requested case.",
+        "observed_code_behavior": "access() queries events WHERE cid=? and jobs WHERE cid=? using the case's own id, so only that case's timeline and jobs are included.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 118,
+            "end_line": 122,
+            "role": "control",
+            "explanation": "events and jobs selected by cid=?; no cross-case join."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Preference scoping by case owner (store.py:0122)",
+        "required_behavior": "Preferences included must belong to the requesting applicant only, isolating the other applicant.",
+        "observed_code_behavior": "choices are selected WHERE owner=c['owner'], i.e., the owner of the requested case, which equals the authenticated borrower due to the owner check; the other applicant's choices are excluded.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 122,
+            "end_line": 122,
+            "role": "control",
+            "explanation": "Preferences filtered by the case owner only."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Inclusion of processing information, partner source and decision data (store.py:0009, 0120, 0135, 0160, 0196)",
+        "required_behavior": "The copy must contain processing information, the partner source, the derived decision, and related events.",
+        "observed_code_behavior": "access() includes processing_information=NOTICE and the full event timeline; partner notice (store.py:0160), automatic decision (store.py:0135) and human review decision (store.py:0196) are recorded as events per cid and thus surfaced. The case row carries supplied and derived fields (stage, route, confirmed).",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 9,
+            "end_line": 9,
+            "role": "operation",
+            "explanation": "NOTICE text used as processing_information."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 118,
+            "end_line": 122,
+            "role": "operation",
+            "explanation": "Copy assembled from case row, NOTICE, events and jobs."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 135,
+            "end_line": 135,
+            "role": "propagation",
+            "explanation": "Automatic decision event recorded per cid."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 160,
+            "end_line": 160,
+            "role": "propagation",
+            "explanation": "Partner source (Income Registry band) event recorded per cid."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 196,
+            "end_line": 196,
+            "role": "propagation",
+            "explanation": "Human review decision event recorded per cid."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Non-cacheable attachment delivery (app.py:0030, 0107-0109)",
+        "required_behavior": "The copy is delivered as a downloadable, non-cached response.",
+        "observed_code_behavior": "Response sets Cache-Control no-store (app.py:0030) and Content-Disposition attachment with application/json for the access copy (app.py:0107-0109).",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "app.py",
+            "start_line": 30,
+            "end_line": 30,
+            "role": "control",
+            "explanation": "Cache-Control no-store on all responses."
+          },
+          {
+            "artifact": "app.py",
+            "start_line": 107,
+            "end_line": 109,
+            "role": "operation",
+            "explanation": "JSON attachment delivery of the access copy."
+          }
+        ],
+        "decisive_unknown": ""
+      }
+    ],
+    "proposed_status": "SUPPORTED",
+    "summary": "The access route enforces owner-only authorization (app.py:0105) after resolving the session user (app.py:0044-0047) and fetching the single case via get_case filtered by id and owner/officer (store.py:0055-0058). store.access (store.py:0118-0122) assembles the copy from the single case row, NOTICE processing information, events and jobs scoped by cid, and preferences scoped to the case owner only, so the other applicant's data is structurally excluded. Partner source (store.py:0160), automatic decision (store.py:0135) and human review decision (store.py:0196) events are recorded per cid and surfaced in the timeline. Delivery is a non-cached JSON attachment (app.py:0030, 0107-0109). All in-scope targets are supported by static reading of the supplied snapshot.",
+    "missing_information": []
+  }
+}

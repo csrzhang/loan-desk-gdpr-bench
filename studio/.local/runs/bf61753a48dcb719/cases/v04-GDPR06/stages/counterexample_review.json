@@ -1,0 +1,107 @@
+{
+  "stage": "counterexample_review",
+  "input_hash": "a18907d2be6b345f39fa7da5304e63195b121a31ffbb5cc6cacd0c24aec4efcb",
+  "seconds": 5.844,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 13200,
+        "output_tokens": 1197,
+        "total_tokens": 14397,
+        "input_token_details": {
+          "cache_read": 896,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "recommended_status": "SUPPORTED",
+    "counterexamples": [
+      "No feasible in-scope counterexample found: the only path to store.access on the access route is gated by who==c['owner'] (app.py:0105), and get_case already restricts the row to id AND (owner=? OR officer=?) (store.py:0056), so an officer session reaching the branch is refused and a foreign borrower cannot resolve the case at all (404).",
+      "Preference leakage is not feasible: choices are selected by owner=c['owner'] (store.py:0122), and c['owner'] equals the authenticated borrower because of the owner check; the other applicant's choices are excluded.",
+      "Cross-case event/job leakage is not feasible: events and jobs are selected by cid=? using the single case's id (store.py:0120-0121); no join to other cases exists.",
+      "Residual (not a counterexample to the named predicate): the copy omits summaries.title and receiver payloads, but the requirement enumerates supplied/derived case data, processing information, partner source, decision, related events and preferences — all of which are present; omission of those extra tables does not defeat the stated predicate."
+    ],
+    "unsupported_assumptions": [
+      "Treating the scenario's 'verified borrower' as the authenticated owner session is an interpretation; the source has no separate verification flag. This is a reasonable reading but is not code-evidenced.",
+      "The draft's claim that the copy is 'complete' is limited to the fields enumerated in store.access; completeness for summaries.title, receiver payloads, or confirmed-band provenance is not asserted and should not be read as verified.",
+      "No runtime execution was performed; all findings are static reading of the supplied snapshot."
+    ],
+    "anchors": [
+      {
+        "artifact": "app.py",
+        "start_line": 44,
+        "end_line": 47,
+        "role": "propagation",
+        "explanation": "Session user 'who' resolved from cookie; basis for authorization and owner scoping."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 100,
+        "end_line": 106,
+        "role": "control",
+        "explanation": "Access branch requires who==c['owner'] (403 'Borrower required.' otherwise) before store.access; officer sessions refused."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 107,
+        "end_line": 109,
+        "role": "operation",
+        "explanation": "Copy returned as application/json attachment."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 30,
+        "end_line": 30,
+        "role": "control",
+        "explanation": "Cache-Control no-store on responses."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 55,
+        "end_line": 58,
+        "role": "control",
+        "explanation": "get_case selects single row WHERE id=? AND (owner=? OR officer=?); prevents cross-applicant case retrieval."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 118,
+        "end_line": 122,
+        "role": "operation",
+        "explanation": "access() assembles copy: case row, NOTICE, events/jobs by cid, preferences by case owner only."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 9,
+        "end_line": 9,
+        "role": "operation",
+        "explanation": "NOTICE text supplied as processing_information."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 135,
+        "end_line": 135,
+        "role": "propagation",
+        "explanation": "Automatic decision event recorded per cid, surfaced in timeline."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 160,
+        "end_line": 160,
+        "role": "propagation",
+        "explanation": "Partner source (Income Registry band) event recorded per cid, surfaced in timeline."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 196,
+        "end_line": 196,
+        "role": "propagation",
+        "explanation": "Human review decision event recorded per cid, surfaced in timeline."
+      }
+    ],
+    "review_summary": "Confirmed SUPPORTED after independent inspection of every required target. Authorization: app.py:0105 requires who==c['owner'] before store.access, and get_case (store.py:0056) already filters by id AND (owner=? OR officer=?), so a foreign borrower gets 404 and an officer gets 403 — no cross-applicant access path exists. Isolation: events and jobs are scoped by cid=? (store.py:0120-0121) and preferences by owner=c['owner'] (store.py:0122), which equals the authenticated borrower; the other applicant's data is structurally excluded. Content: the case row carries supplied and derived fields (stage, route, confirmed), processing_information=NOTICE is included (store.py:0009, 0120), and partner source (0160), automatic decision (0135) and human review decision (0196) events flow into the timeline. Delivery is a non-cached JSON attachment (app.py:0030, 0107-0109). The draft's caveats about summaries.title/receiver payloads and the 'verified borrower' interpretation are accurate and do not defeat the named predicate. No feasible in-scope counterexample found; no defect presumed."
+  }
+}

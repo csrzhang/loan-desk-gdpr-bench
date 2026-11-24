@@ -1,0 +1,98 @@
+{
+  "law": "Regulation (EU) 2016/679, OJ L 119, 4 May 2016, English text, CELEX 32016R0679",
+  "source": "https://eur-lex.europa.eu/legal-content/EN/TXT/PDF/?uri=CELEX%3A32016R0679",
+  "assumptions": "Synthetic adult, EU-established private controller; each scenario starts in its own database. Scope is the named, testable behavior, conditional on the stated facts. External systems are local fixtures.",
+  "obligations": [
+    {
+      "obligation_id": "GDPR01",
+      "title": "Application field minimization",
+      "article": "5(1)(c)",
+      "family": "T04",
+      "scenario": "Submit a loan application using email for delivery, amount and term for the requested offer, and income band for assessment. A hobby has no business purpose in this fixture."
+    },
+    {
+      "obligation_id": "GDPR02",
+      "title": "Purpose limitation",
+      "article": "5(1)(b), 6(4)",
+      "family": "T04",
+      "scenario": "An opted-in subscriber has a partner-confirmed income band for underwriting. There is no compatible marketing purpose or new legal basis for targeting with that band."
+    },
+    {
+      "obligation_id": "GDPR03",
+      "title": "Purpose-specific opt-in",
+      "article": "6(1)(a), 7(1), 7(2), 7(4)",
+      "family": "T02",
+      "scenario": "An adult uses the core application with optional repayment insights initially off. Marketing permission does not authorize private insights."
+    },
+    {
+      "obligation_id": "GDPR04",
+      "title": "Withdrawal before execution",
+      "article": "7(3)",
+      "family": "T02",
+      "scenario": "Two borrowers opt in and queue reports. One withdraws before execution. The queue is reopened and drained twice; the other borrower remains eligible."
+    },
+    {
+      "obligation_id": "GDPR05",
+      "title": "Notice at collection and partner import",
+      "article": "12(1), 13(1)–(2), 14(1)–(3)",
+      "family": "T01",
+      "scenario": "Direct application plus a synthetic Income Registry import. No prior outward disclosure or Art. 14(5) exception. The applicant may open the case immediately or leave it unopened."
+    },
+    {
+      "obligation_id": "GDPR06",
+      "title": "Subject access copy",
+      "article": "15(1), 15(3), 15(4)",
+      "family": "T08",
+      "scenario": "The authenticated applicant requests the copy of one specified case, including derived decision, source, linked activities and processing information. Another applicant has separate data."
+    },
+    {
+      "obligation_id": "GDPR07",
+      "title": "Rectification and subsequent use",
+      "article": "16",
+      "family": "T08",
+      "scenario": "The borrower corrects a contact email. After reopening the database the next offer must use the corrected address. A separate live case is unaffected."
+    },
+    {
+      "obligation_id": "GDPR08",
+      "title": "Erasure of an abandoned case",
+      "article": "17(1)(a), 17(3)",
+      "family": "T07",
+      "scenario": "An abandoned application is no longer necessary. There is no mandatory retention, prior external disclosure or other exception in this fixture. An active case remains necessary."
+    },
+    {
+      "obligation_id": "GDPR09",
+      "title": "Restrict ordinary use of disputed data",
+      "article": "18(1)(a), 18(2), 18(3)",
+      "family": "T07",
+      "scenario": "Accuracy of the partner income band is disputed before a queued score runs. The record is retained for verification. None of the exceptions for ordinary scoring applies."
+    },
+    {
+      "obligation_id": "GDPR10",
+      "title": "Portable contract fields",
+      "article": "20(1)(a)–(b), 20(2), 20(4)",
+      "family": "T08",
+      "scenario": "Automated processing of a current contract. The borrower supplied email, amount, term and income. They download those fields and request direct transfer to the feasible local receiver."
+    },
+    {
+      "obligation_id": "GDPR11",
+      "title": "Objection to direct marketing",
+      "article": "21(2)–(3)",
+      "family": "T09",
+      "scenario": "A borrower with active marketing permission objects after a campaign is queued. Another subscribed borrower has no objection. Service decisions remain necessary."
+    },
+    {
+      "obligation_id": "GDPR12",
+      "title": "Case and offer confidentiality",
+      "article": "25(1)–(2), 32(1)",
+      "family": "T05",
+      "scenario": "The selected risk is disclosure of a synthetic case or offer via its ordinary case and download routes. The permitted principals are the owner and the assigned officer."
+    },
+    {
+      "obligation_id": "GDPR13",
+      "title": "Effective human intervention after automatic refusal",
+      "article": "22(1), 22(2)(c), 22(3)",
+      "family": "T11",
+      "scenario": "Assume a qualifying significant automatic credit refusal and valid separate explicit consent under Art. 22(2)(c). The applicant contests, submits their view and an authorized officer approves. Manual selection and pre-decision withdrawal are also exercised."
+    }
+  ]
+}

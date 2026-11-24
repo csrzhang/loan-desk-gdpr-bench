@@ -1,0 +1,79 @@
+{
+  "stage": "locus_finder",
+  "input_hash": "ef1c61e664d568e46a311331931bbea574e7de3b113b063ef6b63ee0b1ef69e3",
+  "seconds": 3.686,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 10574,
+        "output_tokens": 757,
+        "total_tokens": 11331,
+        "input_token_details": {
+          "cache_read": 0,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "loci": [
+      {
+        "artifact": "views.py",
+        "start_line": 31,
+        "end_line": 32,
+        "rationale": "Form renders only purpose-relevant inputs: email (delivery), amount and term (offer), income band (assessment), plus the 'auto' route checkbox; no hobby or other non-purpose field is collected."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 53,
+        "end_line": 55,
+        "rationale": "Entrypoint parses the /apply form payload into data (bounded field count, single values) and passes it to store.submit; no extra fields are synthesized."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 83,
+        "end_line": 84,
+        "rationale": "Route /apply forwards the accepted payload to store.submit, the sole persistence path for applications."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 67,
+        "end_line": 67,
+        "rationale": "Server-side allowlist rejects any application field outside {email, amount, term, income, auto}, enforcing minimization on the accepted payload."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 69,
+        "end_line": 74,
+        "rationale": "Validation bounds amount, term and income band to defined values so only purpose-relevant, constrained data proceeds."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 77,
+        "end_line": 79,
+        "rationale": "Persistence writes only email, amount, term, income, route, stage; summary title uses amount and term only — no non-purpose field stored."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 111,
+        "end_line": 116,
+        "rationale": "Onward payloads: offer() sends email, amount, term; portable() sends email, amount, term, income — all purpose-relevant, no hobby."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 201,
+        "end_line": 203,
+        "rationale": "Transfer stores the portable payload (email, amount, term, income) in receiver, confirming onward sending is limited to purpose-relevant fields."
+      }
+    ],
+    "path_summary": "Customer dashboard form (views.py 31-32) collects only email, amount, term, income and the 'auto' route choice. POST /apply (app.py 53-55, 83-84) parses the form and calls store.submit, which enforces a field allowlist (store.py 67), validates amount/term/income (69-74), and persists only purpose-relevant columns (77-79). Onward payloads — offer (111-112), portable (114-116) and transfer to receiver (201-203) — carry only email, amount, term, income. No hobby or other non-purpose field appears in the form, allowlist, schema, or onward payloads, so the minimization predicate holds.",
+    "missing_boundaries": [
+      "No execution, repository or external retrieval was performed; assessment is limited to the supplied snapshot.",
+      "Legal sufficiency of the 'auto' consent/route checkbox is not assessed; it is treated as a route control, not an extra data field.",
+      "Other GDPR obligations (retention, consent validity, security) are out of scope for this predicate.",
+      "No inference about upstream or hidden implementation beyond the supplied files."
+    ]
+  }
+}

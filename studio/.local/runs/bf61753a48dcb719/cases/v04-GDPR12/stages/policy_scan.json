@@ -1,0 +1,64 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "5aab3b47392bd4c167e540f5f06b1de8a545797b3fcbfba4ec2458c07094c160",
+  "seconds": 11.07,
+  "invocations": 2,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9870,
+        "output_tokens": 728,
+        "total_tokens": 10598,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    },
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9870,
+        "output_tokens": 727,
+        "total_tokens": 10597,
+        "input_token_details": {
+          "cache_read": 9728,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "Ordinary case route (/case/{id}) and offer download route (/case/{id}/offer) must be reachable only by the authenticated owner or the assigned officer; any other borrower or unassigned officer must be denied.",
+    "applicability_facts": [
+      "Scenario: synthetic EU-established private controller; risk is disclosure of a synthetic case or offer via its ordinary case and download routes.",
+      "Permitted principals are stipulated as the owner and the assigned officer.",
+      "app.py:0092-0095 routes /case/{id} and /case/{id}/offer through store.get_case(db, who, cid).",
+      "store.py:0055-0058 get_case selects the case only WHERE id=? AND (owner=? OR officer=?), raising 404 otherwise.",
+      "app.py:0110-0112 serves the ordinary case view (op is None) after get_case, with no further principal check.",
+      "app.py:0100-0103 serves the offer download after get_case; the only added condition is stage in (accepted, offered) and not restricted.",
+      "store.py:0111-0112 offer() returns case id, email, amount and term for the case object already gated by get_case."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "No exception in the supplied source permits a non-owner, non-assigned-officer principal to reach these routes.",
+      "The offer route's stage/restriction gate (app.py:0102) is an availability condition, not an access exception.",
+      "The owner-only check at app.py:0105 applies to access/portable, not to the ordinary case or offer routes."
+    ],
+    "required_controls": [
+      "Single authorization gate on case lookup: store.get_case (store.py:0055-0058) restricts to owner or assigned officer and returns 404 for others.",
+      "Ordinary case route (app.py:0110-0112) must be served only after that gate; no bypass path exists in the supplied routing.",
+      "Offer download route (app.py:0100-0103) must be served only after that gate, with offer payload (store.py:0111-0112) derived from the gated case row.",
+      "Authentication prerequisite: unauthenticated requests are rejected at app.py:0068-0070 before any case route is reached.",
+      "Dashboard listing (app.py:0077) also filters by owner or officer, consistent with the same principal set."
+    ],
+    "assessment_limits": [
+      "Assessment is static reading of supplied source only; no execution, browsing or oracle was used.",
+      "store.py, views.py and style.css are supplied artifacts; behavior of any code not shown cannot be assessed.",
+      "Session store is in-memory (app.py:0024, 0046-0047); session fixation/expiry behavior beyond the shown 8-hour expiry is not evaluated.",
+      "The offer route's stage/restriction condition is noted but not assessed for correctness against other obligations.",
+      "No conclusion is drawn about upstream or hidden implementations; only the supplied snapshot establishes the controls."
+    ]
+  }
+}

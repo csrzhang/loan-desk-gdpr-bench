@@ -1,0 +1,77 @@
+{
+  "case_id": "v04-GDPR06",
+  "verdict": "SUPPORTED",
+  "explanation": "Code facts: The session identity is resolved from the cookie into `who` (app.py:0044-0047). The route regex `/case/(\\d{1,18})(?:/([a-z-]+))?` (app.py:0092) yields cid and op; `store.get_case(db,who,cid)` selects `WHERE id=? AND (owner=? OR officer=?)` (store.py:0055-0058), so a foreign borrower's cid raises 404 \"Case unavailable.\" and an officer session resolves the row. In the GET branch for op in (\"access\",\"portable\",\"offer\") (app.py:0100-0106), non-offer ops require `who==c[\"owner\"]` (403 \"Borrower required.\") before `store.access(db,c)`. `access()` (store.py:0118-0122) returns `application` = the single case row (owner, officer, email, amount, term, income, confirmed, route, stage, restricted), `processing_information` = NOTICE (store.py:0009), `timeline` = `SELECT kind,body,at FROM events WHERE cid=?`, `jobs` = `SELECT kind,state FROM jobs WHERE cid=?`, and `preferences` = `SELECT purpose,value,version,at FROM choices WHERE owner=?` bound to `c[\"owner\"]`. Partner-source text is written as a per-cid event (store.py:0160), automatic decisions as per-cid events (store.py:0135), and human review decisions as per-cid events (store.py:0196). The response is JSON with `Content-Disposition: attachment` (app.py:0107-0109) and `Cache-Control: no-store` (app.py:0030).\n\nRequirement: Article 15(1), (3), (4) as scoped: on a GET to /case/<cid>/access by the authenticated borrower, the service must return a copy for that single case containing supplied and derived data, processing information, the partner source, the decision, related events and preferences, and must not include another applicant's data. The scenario supplies the trigger (authenticated applicant requests one specified case; another applicant has separate data in the same database). No restriction/erasure exception is applied to the access route in the supplied source.\n\nJustification: Every in-scope control is evidenced. Authorization: app.py:0105 admits only the case owner; get_case (store.py:0056) already prevents resolving another applicant's case, so no cross-applicant path to store.access exists. Isolation: events and jobs are keyed by the single cid (store.py:0120-0121) and preferences by `c[\"owner\"]`, which equals the authenticated borrower (store.py:0122); no cross-case join exists. Content: the case row carries supplied and derived fields (stage, route, confirmed), NOTICE is embedded as processing information, and partner-source (0160), automatic-decision (0135) and review-decision (0196) events appear in the timeline. Delivery is a non-cached JSON attachment. No supported in-scope counterexample was found, and no decisive unresolved dependency remains for the named predicate; the copy's completeness is asserted only for the fields enumerated in store.access (summaries.title and receiver payloads are not included, but they are outside the enumerated predicate).",
+  "evidence": [
+    {
+      "path": "app.py",
+      "start_line": 44,
+      "end_line": 47,
+      "quote": "            sid=cookie[\"session\"].value if \"session\" in cookie else \"\"\n            now=time.monotonic()\n            self.sessions={k:v for k,v in self.sessions.items() if v[2]>now}\n            who,token,_=self.sessions.get(sid,(\"\",\"\",0))",
+      "supports": "Session user 'who' resolved from the cookie; basis for authorization and owner scoping."
+    },
+    {
+      "path": "app.py",
+      "start_line": 100,
+      "end_line": 106,
+      "quote": "                        elif method==\"GET\" and op in (\"access\",\"portable\",\"offer\"):\n                            if op==\"offer\":\n                                require(c[\"stage\"] in (\"accepted\",\"offered\") and not c[\"restricted\"],\"Offer unavailable.\",409)\n                                item=store.offer(db,c)\n                            else:\n                                require(who==c[\"owner\"],\"Borrower required.\",403)\n                                item=store.access(db,c) if op==\"access\" else store.portable(c)",
+      "supports": "Access branch requires who==c['owner'] (403 'Borrower required.' otherwise) before store.access; officer sessions refused."
+    },
+    {
+      "path": "app.py",
+      "start_line": 107,
+      "end_line": 109,
+      "quote": "                            mime=\"application/json\"\n                            headers.append((\"Content-Disposition\",f'attachment; filename=\"loan-{cid}-{op}.json\"'))\n                            body=json.dumps(item,indent=2)",
+      "supports": "Copy returned as application/json attachment."
+    },
+    {
+      "path": "app.py",
+      "start_line": 30,
+      "end_line": 30,
+      "quote": "        headers=[(\"Cache-Control\",\"no-store\"),(\"X-Content-Type-Options\",\"nosniff\"),",
+      "supports": "Cache-Control no-store on responses."
+    },
+    {
+      "path": "store.py",
+      "start_line": 55,
+      "end_line": 58,
+      "quote": "def get_case(db, who, cid):\n    row = db.execute(\"SELECT * FROM cases WHERE id=? AND (owner=? OR officer=?)\",(cid,who,who)).fetchone()\n    require(row, \"Case unavailable.\", 404)\n    return dict(row)",
+      "supports": "get_case selects a single row WHERE id=? AND (owner=? OR officer=?); prevents cross-applicant case retrieval."
+    },
+    {
+      "path": "store.py",
+      "start_line": 118,
+      "end_line": 122,
+      "quote": "def access(db,c):\n    cid=c[\"id\"]\n    return {\"application\":c,\"processing_information\":NOTICE,\"timeline\":rows(db,\"SELECT kind,body,at FROM events WHERE cid=? ORDER BY id\",(cid,)),\n            \"jobs\":rows(db,\"SELECT kind,state FROM jobs WHERE cid=? ORDER BY id\",(cid,)),\n            \"preferences\":rows(db,\"SELECT purpose,value,version,at FROM choices WHERE owner=? ORDER BY id\",(c[\"owner\"],))}",
+      "supports": "access() assembles the copy: case row, NOTICE, events/jobs by cid, preferences by case owner only."
+    },
+    {
+      "path": "store.py",
+      "start_line": 9,
+      "end_line": 9,
+      "quote": "NOTICE = \"\"\"Loan Desk Research (controller), privacy@loandesk.example, processes contact email, amount, term and income band to handle your requested application and contract. Your assigned officer may consult a synthetic Income Registry confirmation for underwriting only. The optional automatic route uses your separate explicit consent: amounts above the income-band limit are declined, which closes this application. The low, medium and high limits are EUR 5,000, 15,000 and 30,000. Manual review has the same terms and access. You can withdraw before decision, give your view, contest a decline and obtain human review. Repayment insights and promotions each require a separate optional consent. Switch either off at any time as easily as switching it on. You may object to all direct marketing. Withdrawal applies to future processing. Only authorized case staff and you can view your file. On request a local receiving controller can receive your portable fields. No international transfer is modeled. Active cases are retained for handling and servicing; an abandoned case with no remaining retention ground can be erased. Account choices remain for preference handling. You can access, correct, restrict, erase or port eligible data here, contact the controller, or complain to your EU supervisory authority. Required application fields enable assessment and delivery of your offer; without them we cannot process the application.\"\"\"",
+      "supports": "NOTICE text supplied as processing_information."
+    },
+    {
+      "path": "store.py",
+      "start_line": 135,
+      "end_line": 135,
+      "quote": "            event(db,cid,\"decision\",f\"Automatic {stage}. Amount {c['amount']} compared with {band} limit {LIMITS[band]}.\")",
+      "supports": "Automatic decision event recorded per cid, surfaced in the timeline."
+    },
+    {
+      "path": "store.py",
+      "start_line": 160,
+      "end_line": 160,
+      "quote": "        event(db,cid,\"partner notice\",f\"Income Registry supplied income band {data['band']} today for underwriting. \"+NOTICE)",
+      "supports": "Partner source (Income Registry band) event recorded per cid, surfaced in the timeline."
+    },
+    {
+      "path": "store.py",
+      "start_line": 196,
+      "end_line": 196,
+      "quote": "        event(db,cid,\"decision\",f\"{who} reviewed: {result}. \"+data[\"reason\"])",
+      "supports": "Human review decision event recorded per cid, surfaced in the timeline."
+    }
+  ]
+}

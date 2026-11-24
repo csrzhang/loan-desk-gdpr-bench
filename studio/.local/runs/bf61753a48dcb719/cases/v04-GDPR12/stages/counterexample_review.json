@@ -1,0 +1,92 @@
+{
+  "stage": "counterexample_review",
+  "input_hash": "dc61a5826aac49283ede89d1af90879c337e1403fe0c424477204e09b9cc1839",
+  "seconds": 5.239,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 12810,
+        "output_tokens": 1033,
+        "total_tokens": 13843,
+        "input_token_details": {
+          "cache_read": 896,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "recommended_status": "SUPPORTED",
+    "counterexamples": [
+      "No feasible in-scope counterexample found: a non-owner borrower (e.g. ben on alice's case) or an unassigned officer (e.g. sam on morgan's case) fails store.get_case's WHERE id=? AND (owner=? OR officer=?) and receives 404 before either the op-is-None detail branch or the offer branch executes.",
+      "The offer branch's stage/restriction condition (app.py:0102) cannot be reached by a non-permitted principal because get_case raises first; it is an availability gate, not an access exception.",
+      "The owner-only check at app.py:0105 does not weaken the offer route: it applies only to access/portable, and the offer route still depends on the get_case gate."
+    ],
+    "unsupported_assumptions": [
+      "No execution, oracle or runtime verification was performed; the conclusion is a static reading of the supplied snapshot.",
+      "Behavior of code outside the supplied artifacts (e.g. any upstream or hidden implementation) is not inferred.",
+      "Session fixation/expiry beyond the shown 8-hour expiry and in-memory session map is not evaluated; it is outside the named obligation."
+    ],
+    "anchors": [
+      {
+        "artifact": "app.py",
+        "start_line": 68,
+        "end_line": 70,
+        "role": "control",
+        "explanation": "Unauthenticated requests (empty `who`) are limited to GET / and otherwise raise 401, so no case route is reachable without a session."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 92,
+        "end_line": 95,
+        "role": "trigger",
+        "explanation": "Both /case/{id} and /case/{id}/offer are parsed and resolved through store.get_case(db, who, cid) before any branch, making it the single principal gate."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 55,
+        "end_line": 58,
+        "role": "control",
+        "explanation": "Decisive authorization gate: row selected only WHERE id=? AND (owner=? OR officer=?), with `who` bound to both; otherwise 404. Denies other borrowers and unassigned officers."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 110,
+        "end_line": 112,
+        "role": "operation",
+        "explanation": "Ordinary case route (op is None) served only after the get_case gate, with no further principal check and no bypass path."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 100,
+        "end_line": 103,
+        "role": "operation",
+        "explanation": "Offer download served after the gate; the added stage/restriction condition is availability, not an access exception."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 111,
+        "end_line": 112,
+        "role": "propagation",
+        "explanation": "offer() returns case id, email, amount and term from the case object already restricted by get_case."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 105,
+        "end_line": 106,
+        "role": "control",
+        "explanation": "Contrast: owner-only check applies to access/portable, not to the ordinary case or offer routes; confirms the offer route relies solely on get_case."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 77,
+        "end_line": 77,
+        "role": "control",
+        "explanation": "Dashboard listing filters by owner or officer, consistent with the same permitted principal set."
+      }
+    ],
+    "review_summary": "Confirmed SUPPORTED. The named obligation covers the ordinary case route (/case/{id}) and the offer download (/case/{id}/offer), permitting only the owner and assigned officer. Both routes resolve through store.get_case (store.py:0055-0058), which selects the row only WHERE id=? AND (owner=? OR officer=?) and raises 404 otherwise; this is the sole principal gate and precedes both branches (app.py:0092-0095). Unauthenticated requests are rejected at app.py:0068-0070 before case routing. The offer branch's stage/restriction condition (app.py:0102) is availability, not an access exception, and the owner-only check at app.py:0105 covers access/portable only. A non-owner borrower or unassigned officer fails get_case and cannot reach either route; no feasible in-scope counterexample exists in the supplied snapshot. Static reading only; no execution performed."
+  }
+}

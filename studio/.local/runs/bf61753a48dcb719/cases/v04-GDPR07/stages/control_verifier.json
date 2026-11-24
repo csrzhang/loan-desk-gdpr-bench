@@ -1,0 +1,119 @@
+{
+  "stage": "control_verifier",
+  "input_hash": "1961a68a5b76052f4558b407a60529979ff204caeea46aa7aa1c7b58e720fb04",
+  "seconds": 4.792,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 11711,
+        "output_tokens": 1040,
+        "total_tokens": 12751,
+        "input_token_details": {
+          "cache_read": 1152,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "checks": [
+      {
+        "target": "store.action 'correct' branch: persistence of corrected email to cases.email",
+        "required_behavior": "The validated corrected email must be written to the target case row (UPDATE cases SET email=... WHERE id=?) so it survives reopening.",
+        "observed_code_behavior": "The 'correct' branch calls email(data.get('email','')) for validation and then only inserts a 'correction' event; no UPDATE of cases.email is issued, so the stored email column is unchanged.",
+        "outcome": "contradicts",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 172,
+            "end_line": 174,
+            "role": "operation",
+            "explanation": "Correct branch validates email and logs an event but performs no UPDATE of cases.email."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 60,
+            "end_line": 63,
+            "role": "control",
+            "explanation": "email() only validates and returns the value; the return is discarded in the correct branch."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "store.offer recipient field c['email'] and downstream offer output",
+        "required_behavior": "Subsequent offers must use the corrected address read from the persisted case row.",
+        "observed_code_behavior": "offer() builds 'to' from c['email'], the stored case row field; since correction never writes that field, offers continue to use the original address.",
+        "outcome": "contradicts",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 111,
+            "end_line": 112,
+            "role": "propagation",
+            "explanation": "Offer recipient is taken from the stored case row's email field."
+          },
+          {
+            "artifact": "app.py",
+            "start_line": 100,
+            "end_line": 109,
+            "role": "propagation",
+            "explanation": "Offer endpoint serializes store.offer(db,c) result, so recipient derives from the persisted row."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Persistence across database reopen (fresh connection per request)",
+        "required_behavior": "The corrected value must be committed so a reopened database yields it.",
+        "observed_code_behavior": "Each request opens a fresh SQLite connection and commits on context exit; persistence depends on an UPDATE being issued, which the correct branch does not do.",
+        "outcome": "contradicts",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 22,
+            "end_line": 31,
+            "role": "operation",
+            "explanation": "Fresh connection per request with commit on exit; no email UPDATE is issued to persist."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 55,
+            "end_line": 58,
+            "role": "propagation",
+            "explanation": "get_case re-reads the case row from SQLite, so offer depends on the persisted email column."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Per-case scoping and owner authorization for correction",
+        "required_behavior": "Correction must be scoped to the target case id and owner-authorized so a separate live case is unaffected.",
+        "observed_code_behavior": "action() resolves the case by id and requires owner for non-staff ops; the correct branch operates on that cid only, leaving other cases untouched.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 145,
+            "end_line": 156,
+            "role": "control",
+            "explanation": "Case resolved by id; owner required for 'correct'."
+          },
+          {
+            "artifact": "app.py",
+            "start_line": 97,
+            "end_line": 99,
+            "role": "trigger",
+            "explanation": "POST /case/<id>/correct dispatches to store.action with the target cid."
+          }
+        ],
+        "decisive_unknown": ""
+      }
+    ],
+    "proposed_status": "CONTRADICTED",
+    "summary": "The 'correct' action validates the submitted email and records a 'correction' event but never issues an UPDATE of cases.email (store.py 0172-0174). Offers read the recipient from the stored case row's email field (store.py 0111-0112) via a fresh per-request connection (store.py 0022-0031, 0055-0058), so after reopening the database the next offer uses the stale address. The persistence-and-subsequent-use requirement is contradicted. Per-case scoping and owner authorization are present, so a separate live case is unaffected.",
+    "missing_information": []
+  }
+}

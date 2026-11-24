@@ -1,0 +1,97 @@
+{
+  "stage": "regulatory_arbiter",
+  "input_hash": "abe3cb5db7b5e56afad868276ec48b6f59557e53c3ce8fec7c57b17a737f05cf",
+  "seconds": 5.833,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 13718,
+        "output_tokens": 1381,
+        "total_tokens": 15099,
+        "input_token_details": {
+          "cache_read": 0,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "case_id": "case-eee8214576f20771",
+    "rule_id": "GDPR01",
+    "status": "SUPPORTED",
+    "short_explanation": "The customer form renders only email, amount, term, income and the 'auto' route choice; store.submit enforces a field allowlist rejecting any extra field (e.g. hobby), persists only purpose-relevant columns, and onward payloads (offer, portable, transfer) carry only email/amount/term/income. No in-scope counterexample exists in the snapshot.",
+    "detailed_explanation": "Code facts: The customer dashboard builds the application form from notice() plus inputbox(\"Contact email\",\"email\"), inputbox(\"Requested amount (EUR)\",\"amount\"), select(\"Term in months\",\"term\",[6,12,24,36]), select(\"Income band\",\"income\",[\"low\",\"medium\",\"high\"]) and an 'auto' checkbox (views.py 0031-0032); no hobby or other non-purpose input is rendered. POST bodies are parsed into data with a bounded field count and single values (app.py 0053-0055) and /apply forwards data to store.submit (app.py 0083-0084). submit enforces set(data) <= {\"email\",\"amount\",\"term\",\"income\",\"auto\"} and raises \"Unexpected application field.\" otherwise (store.py 0067), validates amount/term/income (store.py 0069-0074), and inserts only owner, officer, email, amount, term, income, route, stage (store.py 0077-0078) with a summary title using amount and term only (store.py 0079). The cases schema has no non-purpose column (store.py 0036-0038). Onward payloads: offer() returns case id, email, amount, term (store.py 0111-0112); portable() returns email, amount, term, income (store.py 0114-0116); transfer stores json.dumps(portable(c)) in receiver (store.py 0201-0203).\n\nRequirement: Article 5(1)(c) as scoped requires that only necessary applicant inputs are collected through the form and accepted payload, including what is persisted or sent onward — here contact email (delivery), amount and term (requested offer), and income band (assessment). The scenario trigger is present: a loan application is submitted with those fields, and a hobby has no business purpose in this fixture, so any collection, acceptance, persistence or forwarding of a hobby field would be a counterexample.\n\nJustification: Each in-scope target was checked against the source. The form collects only purpose-relevant inputs plus the 'auto' route/consent choice, which is stored as route (store.py 0075, 0077-0078) and is tied to the assessment route rather than being an extra data field. The accepted payload is allowlisted at store.py 0067, so a POST carrying 'hobby' is rejected before persistence. Persistence and onward payloads contain only email, amount, term, income (and case metadata). No supported in-scope counterexample exists, and no decisive unresolved dependency remains, so the minimization predicate holds and the verdict is SUPPORTED. This is limited to the named minimization behavior; consent validity, retention and other obligations are out of scope.",
+    "evidence": [
+      {
+        "artifact": "views.py",
+        "start_line": 31,
+        "end_line": 32,
+        "role": "operation",
+        "explanation": "Customer form renders only email, amount, term, income and the 'auto' route checkbox; no hobby or other non-purpose input."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 53,
+        "end_line": 55,
+        "role": "propagation",
+        "explanation": "Form payload parsed into data (bounded field count, single values) without synthesizing extra fields."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 83,
+        "end_line": 84,
+        "role": "propagation",
+        "explanation": "/apply forwards the parsed payload to store.submit, the sole application persistence path."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 67,
+        "end_line": 67,
+        "role": "control",
+        "explanation": "Server-side allowlist set(data) <= {email, amount, term, income, auto} rejects any unexpected field, including a hobby."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 69,
+        "end_line": 74,
+        "role": "control",
+        "explanation": "Validation bounds amount, term and income band to defined values before persistence."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 36,
+        "end_line": 38,
+        "role": "control",
+        "explanation": "Schema has no non-purpose column; only email, amount, term, income, route, stage and case metadata."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 77,
+        "end_line": 79,
+        "role": "operation",
+        "explanation": "Insert and summary write only purpose-relevant values (email, amount, term, income, route, stage; summary uses amount and term)."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 111,
+        "end_line": 116,
+        "role": "propagation",
+        "explanation": "offer() sends email, amount, term; portable() sends email, amount, term, income — all purpose-relevant."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 201,
+        "end_line": 203,
+        "role": "propagation",
+        "explanation": "Transfer persists json.dumps(portable(c)) in receiver, limited to email, amount, term, income."
+      }
+    ],
+    "missing_information": [
+      "No execution, repository or external retrieval was performed; assessment is limited to the supplied snapshot.",
+      "Legal sufficiency of the 'auto' consent/route checkbox is not assessed; it is treated as a route control, not an extra data field.",
+      "Other GDPR obligations (retention, consent validity, security) are out of scope for this predicate."
+    ]
+  }
+}

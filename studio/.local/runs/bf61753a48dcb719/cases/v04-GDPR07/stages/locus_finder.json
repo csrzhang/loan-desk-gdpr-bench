@@ -1,0 +1,78 @@
+{
+  "stage": "locus_finder",
+  "input_hash": "d5322d2cbcfed2050e34a115bfc6a3128157e8e7de951355e7ea3b934a5fedc5",
+  "seconds": 4.148,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 10452,
+        "output_tokens": 779,
+        "total_tokens": 11231,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "loci": [
+      {
+        "artifact": "store.py",
+        "start_line": 172,
+        "end_line": 174,
+        "rationale": "The 'correct' action validates the email and logs a 'correction' event but performs no UPDATE of cases.email; the corrected address is never persisted to the case row."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 111,
+        "end_line": 112,
+        "rationale": "offer() builds the recipient from c['email'], the stored case row field; since correction never writes that field, subsequent offers use the stale address."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 55,
+        "end_line": 58,
+        "rationale": "get_case re-reads the case row from SQLite per request, so the offer path depends entirely on the persisted email column being updated."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 22,
+        "end_line": 31,
+        "rationale": "Each request opens a fresh SQLite connection and commits on context exit; persistence across reopening depends on an UPDATE being issued inside this transaction."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 97,
+        "end_line": 99,
+        "rationale": "Entrypoint: POST /case/<id>/correct dispatches to store.action with op='correct', scoping the request to the target case id."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 100,
+        "end_line": 109,
+        "rationale": "Offer entrypoint: GET /case/<id>/offer calls store.offer(db,c) and serializes the result, so the recipient comes from the stored row."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 145,
+        "end_line": 156,
+        "rationale": "action() resolves the case by id and requires owner authorization for non-staff ops, scoping the correction to the target case and leaving other cases untouched."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 66,
+        "end_line": 67,
+        "rationale": "UI exposes the 'correct' form to the owner with an email field, confirming the rectification path is reachable."
+      }
+    ],
+    "path_summary": "Borrower POSTs /case/<id>/correct (app.py 0097-0099) → store.action resolves the case by id and requires owner (store.py 0145-0156) → 'correct' branch validates the email and only inserts a 'correction' event (store.py 0172-0174), with no UPDATE of cases.email. Offers are produced by GET /case/<id>/offer (app.py 0100-0109) → store.offer reads c['email'] from the case row (store.py 0111-0112), which get_case re-reads from SQLite per request (store.py 0055-0058) under a fresh connection (store.py 0022-0031). Because the corrected address is never written to the persisted column, the offer after reopening uses the stale email; the requirement is not satisfied. Case-id scoping and owner authorization are present, so a separate live case is unaffected.",
+    "missing_boundaries": [
+      "No UPDATE of cases.email exists in the 'correct' branch; the persistence step required by the predicate is absent from the supplied source.",
+      "No execution, database inspection or runtime verification was performed; the persistence gap is a source-reading inference.",
+      "No upstream repository or hidden implementation was consulted."
+    ]
+  }
+}

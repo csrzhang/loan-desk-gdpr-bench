@@ -1,0 +1,9 @@
+__pycache__/
+!dist/
+.local/*
+!.local/runs/
+.local/runs/*
+!.local/runs/10c03de519959625/
+!.local/runs/66ef9e6e4437aa49/
+!.local/runs/bf61753a48dcb719/
+!.local/runs/e87f586c9644cba4/

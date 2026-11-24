@@ -1,0 +1,50 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "eb8bcb3ea979a3573e4c9c92a08da56cd69857e8a410b9412f9b5c1cb2dcf088",
+  "seconds": 4.759,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9861,
+        "output_tokens": 816,
+        "total_tokens": 10677,
+        "input_token_details": {
+          "cache_read": 0,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "The application form and the accepted /apply payload (including what is persisted or sent onward) must be limited to the applicant inputs necessary for the stated purposes: contact email (delivery), amount and term (requested offer), and income band (assessment). No field without a business purpose in this fixture (e.g., a hobby) may be collected, accepted, persisted, or forwarded.",
+    "applicability_facts": [
+      "Scenario: loan application submitted with email for delivery, amount and term for the requested offer, income band for assessment; a hobby has no business purpose in this fixture.",
+      "Form fields rendered for customers: email, amount, term, income, plus the 'auto' route checkbox (views.py 0031-0032).",
+      "Server-side allowlist on the accepted payload: set(data) <= {email, amount, term, income, auto} (store.py 0067).",
+      "Persisted columns: cases(email, amount, term, income, route, ...) (store.py 0036-0038, 0077-0078); summary title uses amount and term (store.py 0079).",
+      "Onward disclosure: offer() returns email, amount, term (store.py 0112); portable() returns email, amount, income (store.py 0116); transfer stores that payload for the receiving controller (store.py 0203)."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "No exception applies to permit a purposeless field such as a hobby; the fixture states it has no business purpose.",
+      "The 'auto' checkbox is a processing-route choice tied to the automatic-decision option described in the notice, not an extra applicant attribute; it is not a hobby-type field.",
+      "Officer-side 'verify'/'notify-release' band inputs (store.py 0158, 0180) are staff confirmations of the same income band, not additional applicant collection."
+    ],
+    "required_controls": [
+      "Form renders only email, amount, term, income and the route checkbox (views.py 0031-0032).",
+      "Server rejects any unexpected field via the allowlist check (store.py 0067), so a 'hobby' key in the payload yields 'Unexpected application field.'",
+      "Persistence writes only email, amount, term, income, route, stage (store.py 0077-0078); no hobby column exists in the schema (store.py 0036-0038).",
+      "Onward payloads are restricted to email/amount/term (offer, store.py 0112) and email/amount/income (portable/transfer, store.py 0116, 0203).",
+      "Field-level validation bounds amount (100-100000), term (6/12/24/36), income in LIMITS, and email format (store.py 0060-0074)."
+    ],
+    "assessment_limits": [
+      "Assessment is limited to the supplied source text; no execution, runtime probing, or repository access was performed.",
+      "Only the named minimization behavior (form fields, accepted payload, persistence, onward sends) is assessed; other GDPR obligations are out of scope.",
+      "The 'auto' route field is treated as a processing choice, not an applicant attribute; whether it is 'necessary' is not decided here.",
+      "No conclusion is drawn about upstream or hidden implementation beyond the three supplied artifacts.",
+      "Compliance is not decided from the rule description alone; it rests on the cited source coordinates and the stipulated scenario facts."
+    ]
+  }
+}

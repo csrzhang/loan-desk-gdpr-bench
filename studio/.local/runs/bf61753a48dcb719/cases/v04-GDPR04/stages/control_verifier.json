@@ -1,0 +1,183 @@
+{
+  "stage": "control_verifier",
+  "input_hash": "5a13bbda8db9bd9d32cd16c68002dd5ce2100ed994f9f3baa63151ce13010e17",
+  "seconds": 8.546,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 12177,
+        "output_tokens": 1816,
+        "total_tokens": 13993,
+        "input_token_details": {
+          "cache_read": 1152,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "checks": [
+      {
+        "target": "Symmetric withdrawal control for 'insights' consent (same /preference form/route as opt-in)",
+        "required_behavior": "Withdrawal must be as easy as giving consent.",
+        "observed_code_behavior": "views.py renders a single /preference form per purpose whose button toggles 'Switch off' when enabled and 'Switch on' when disabled, submitting purpose and value; app.py routes POST /preference to store.preference, which validates purpose in ('insights','promotions','objection') and value in ('on','off') identically for both directions. Same form, same route, same validation.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "views.py",
+            "start_line": 33,
+            "end_line": 36,
+            "role": "control",
+            "explanation": "Single toggle form per purpose; 'Switch off' shown when enabled, same /preference action."
+          },
+          {
+            "artifact": "app.py",
+            "start_line": 85,
+            "end_line": 87,
+            "role": "propagation",
+            "explanation": "POST /preference dispatches purpose/value to store.preference."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 92,
+            "end_line": 95,
+            "role": "operation",
+            "explanation": "preference() validates and appends a choices row for both on and off symmetrically."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Prior information about optionality and withdrawal",
+        "required_behavior": "User must be informed beforehand that consent is optional and withdrawable.",
+        "observed_code_behavior": "NOTICE states insights and promotions each require separate optional consent, can be switched off at any time as easily as on, and withdrawal applies to future processing. views.py notice() renders NOTICE in a details block on the dashboard, and the privacy-choices copy repeats optionality and withdrawal.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 9,
+            "end_line": 9,
+            "role": "control",
+            "explanation": "NOTICE discloses optional separate consent, ease of switching off, and future-only effect."
+          },
+          {
+            "artifact": "views.py",
+            "start_line": 24,
+            "end_line": 25,
+            "role": "propagation",
+            "explanation": "notice() renders NOTICE to the user."
+          },
+          {
+            "artifact": "views.py",
+            "start_line": 33,
+            "end_line": 33,
+            "role": "control",
+            "explanation": "Privacy-choices copy states insights are optional and withdrawable at any time."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Cancellation of already queued 'report' jobs on insights withdrawal",
+        "required_behavior": "Withdrawal must stop already queued report generation.",
+        "observed_code_behavior": "On ('insights','off'), preference() executes UPDATE jobs SET state='cancelled' WHERE kind='report' AND state='queued' AND cid IN (SELECT id FROM cases WHERE owner=?), cancelling the withdrawing owner's queued report jobs.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 96,
+            "end_line": 98,
+            "role": "operation",
+            "explanation": "insights-off cancels queued report jobs scoped to the owner's cases."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Execution-time gate on 'report' generation",
+        "required_behavior": "Report generation must not occur after withdrawal even if a job remains queued.",
+        "observed_code_behavior": "drain() only produces a report when kind=='report' and enabled(db, owner, 'insights') is true; enabled() reads the latest choices row per owner/purpose, so a withdrawn consent yields false and the job is set to 'cancelled' without emitting a report event.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 88,
+            "end_line": 90,
+            "role": "control",
+            "explanation": "enabled() reads latest choice per owner/purpose."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 137,
+            "end_line": 139,
+            "role": "control",
+            "explanation": "Report branch requires enabled(owner,'insights'); otherwise state stays 'cancelled'."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "No retry of cancelled/completed report jobs across repeated drains",
+        "required_behavior": "Repeated drains (retries) must not resurrect withdrawn report work.",
+        "observed_code_behavior": "drain() selects only state='queued' jobs; after processing each job's state is persisted via UPDATE jobs SET state=?. Cancelled jobs are excluded from selection, so a second drain does not re-run them.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 124,
+            "end_line": 128,
+            "role": "control",
+            "explanation": "Only state='queued' jobs are selected for processing."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 143,
+            "end_line": 143,
+            "role": "propagation",
+            "explanation": "Job state persisted after processing; cancelled jobs not re-selected."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Owner-scoped effect preserving unaffected borrower's queued report",
+        "required_behavior": "An unaffected subscriber can still receive the report.",
+        "observed_code_behavior": "Cancellation is scoped by cid IN (SELECT id FROM cases WHERE owner=?) and the enabled() gate is per owner, so the other borrower's queued report job is untouched and their consent still evaluates true, allowing drain() to produce their report.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 98,
+            "end_line": 98,
+            "role": "control",
+            "explanation": "Cancellation scoped to withdrawing owner's cases only."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 88,
+            "end_line": 90,
+            "role": "control",
+            "explanation": "enabled() is per owner, so unaffected borrower's consent remains true."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 137,
+            "end_line": 139,
+            "role": "propagation",
+            "explanation": "Unaffected borrower's report job passes the gate and is generated."
+          }
+        ],
+        "decisive_unknown": ""
+      }
+    ],
+    "proposed_status": "SUPPORTED",
+    "summary": "All in-scope targets for GDPR Art. 7(3) withdrawal of the 'insights' consent are supported by the supplied source. Opt-in and withdrawal share the same /preference form and route (views.py:0033-0036; app.py:0085-0087; store.py:0092-0095). Prior information is disclosed in NOTICE and the privacy-choices copy (store.py:0009; views.py:0024-0025, 0033). On insights-off, queued 'report' jobs for the withdrawing owner's cases are cancelled (store.py:0096-0098), and drain() additionally gates report generation on enabled(owner,'insights') (store.py:0088-0090, 0137-0139). drain() selects only state='queued' jobs and persists state (store.py:0124-0128, 0143), so cancelled reports are not retried on a second drain. Cancellation and the enabled() check are owner-scoped, preserving the unaffected borrower's queued report. Static reading only; no execution performed.",
+    "missing_information": [
+      "No runtime verification: the scenario's 'drained twice' outcome is stipulated, not observed; no database was opened or drain executed.",
+      "No separate retry/backoff mechanism exists in the supplied source; 'retries' are represented only by repeated drain() calls over state='queued' jobs.",
+      "No upstream or hidden implementation is assessed; only app.py, store.py, views.py and style.css are supplied."
+    ]
+  }
+}

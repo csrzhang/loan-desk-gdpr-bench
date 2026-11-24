@@ -1,0 +1,11 @@
+--- a/store.py
++++ b/store.py
+@@ -170,7 +170,7 @@
+             require(eligible_campaign(db,cid),"Outside campaign audience.",409)
+         queue(db,cid,op)
+     elif op=="correct":
+-        db.execute("UPDATE cases SET email=? WHERE id=?",(email(data.get("email","")),cid))
++        email(data.get("email",""))
+         event(db,cid,"correction","Contact email updated.")
+     elif op=="restrict":
+         require(stage!="abandoned" and not c["restricted"],"Select an unrestricted live case.")

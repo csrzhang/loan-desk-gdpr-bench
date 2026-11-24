@@ -1,0 +1,83 @@
+{
+  "stage": "regulatory_arbiter",
+  "input_hash": "48e89ef0b12e06fc8f0703c1c3701e421efce13d8f54b9bd359fa46c340f8766",
+  "seconds": 5.362,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 13433,
+        "output_tokens": 1187,
+        "total_tokens": 14620,
+        "input_token_details": {
+          "cache_read": 1152,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "case_id": "case-29cb05e6997da070",
+    "rule_id": "GDPR10",
+    "status": "CONTRADICTED",
+    "short_explanation": "store.portable() returns only email, amount and income; 'term' is persisted on the case row but omitted from the payload, so both the borrower download and the direct transfer to the local receiver lack one of the four provided fields.",
+    "detailed_explanation": "Code facts: The case row persists the four borrower-provided fields — email, amount, term, income — in the schema (store.py:0036-0038) and they are written from the application form on submit (store.py:0077-0078). Accepting an offer sets stage='accepted' (store.py:0197-0200). The owner-only GET /case/<id>/portable branch (app.py:0100-0109; owner gate at app.py:0105) serializes store.portable(c) with json.dumps and serves it as application/json with an attachment disposition (app.py:0107-0109). store.portable() requires stage=='accepted' and returns a dict comprehension over the key tuple (\"email\",\"amount\",\"income\") only (store.py:0114-0116) — 'term' is available on the row but not included. The transfer action requires destination=='Local Credit Union' and inserts json.dumps(portable(c)) into the receiver table (store.py:0201-0204), reusing the same payload. The UI exposes the download and transfer controls only when stage=='accepted' (views.py:0069-0070).\n\nRequirement: For the accepted contract, the four provided fields (email, amount, term, income) must be returned as machine-readable data to the borrower and, on request, transmitted to the selected local receiver, excluding inferred decisions. The scenario supplies all four fields as borrower-provided data and states the borrower downloads them and requests direct transfer to the feasible local receiver; the accepted-stage gate is a precondition, not an exemption.\n\nJustification: Machine-readable delivery is satisfied (application/json attachment, owner-gated), inferred decisions are excluded (no stage/confirmed/decision keys in the payload), and the transfer targets the selected local receiver. However, the completeness control fails: store.py:0116 omits 'term' from the exported key tuple, and both the borrower download (app.py:0106) and the direct transfer (store.py:0203) reuse this incomplete payload. This is a supported in-scope counterexample for both required targets, so the verdict is CONTRADICTED. No execution was performed; the finding rests on static source reading, and whether the scenario case is in stage 'accepted' is a scenario fact rather than a verified database state.",
+    "evidence": [
+      {
+        "artifact": "store.py",
+        "start_line": 114,
+        "end_line": 116,
+        "role": "operation",
+        "explanation": "portable() gates on stage=='accepted' then returns only keys email, amount, income; 'term' is omitted from the key tuple, so the four-field completeness predicate fails."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 36,
+        "end_line": 38,
+        "role": "propagation",
+        "explanation": "Case schema persists email, amount, term, income, so 'term' is available on the row but not exported."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 77,
+        "end_line": 78,
+        "role": "trigger",
+        "explanation": "Application submission stores the borrower-supplied email, amount, term and income into the case row — the provided (not inferred) fields."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 100,
+        "end_line": 109,
+        "role": "operation",
+        "explanation": "GET portable branch: owner gate at 0105, application/json mime and attachment disposition at 0107-0108, json.dumps body at 0109 — machine-readable delivery satisfied; content governed by portable()."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 201,
+        "end_line": 204,
+        "role": "operation",
+        "explanation": "transfer action requires destination 'Local Credit Union' and persists json.dumps(portable(c)) to receiver, inheriting the missing 'term'."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 69,
+        "end_line": 70,
+        "role": "control",
+        "explanation": "UI exposes portable download and transfer only when stage=='accepted', matching the contract precondition."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 197,
+        "end_line": 200,
+        "role": "trigger",
+        "explanation": "accept action sets stage='accepted', the state that unlocks portable() and transfer."
+      }
+    ],
+    "missing_information": [
+      "No execution or runtime verification of the JSON response body or receiver table contents; assessment is static source reading only.",
+      "Whether the scenario case is actually in stage 'accepted' is a scenario fact, not verified against any database.",
+      "No assessment of the receiver's onward handling or of GDPR articles beyond GDPR10."
+    ]
+  }
+}

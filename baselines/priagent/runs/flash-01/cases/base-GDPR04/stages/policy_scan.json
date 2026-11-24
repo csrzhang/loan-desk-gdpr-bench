@@ -1,0 +1,51 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "83dbca3767b6f1c34079c241eae5db3d1c2fdfb8f5c4b801241eb58c0f56dfbb",
+  "seconds": 5.714,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9882,
+        "output_tokens": 859,
+        "total_tokens": 10741,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "Withdrawal of an optional consent (here: the \"insights\" purpose that generates repayment reports) must be as easy as giving it, must be preceded by information, and must stop future report generation — including jobs already queued and any retries — while leaving an unaffected subscriber's queued report deliverable.",
+    "applicability_facts": [
+      "Scenario: two borrowers opt in (insights consent on) and queue reports; one withdraws before execution; the queue is reopened and drained twice; the other borrower remains eligible.",
+      "store.py:0092-0098 preference() accepts purpose 'insights' with value 'off' and, on that transition, cancels queued 'report' jobs for that owner's cases (UPDATE jobs SET state='cancelled' WHERE kind='report' AND state='queued' AND cid IN (SELECT id FROM cases WHERE owner=?)).",
+      "store.py:0137-0139 drain() executes a 'report' job only if enabled(db, c['owner'], 'insights') is still true, so a withdrawn owner's report cannot be generated on a later drain.",
+      "store.py:0088-0090 enabled() reads the latest choice row per (owner, purpose), so the withdrawal is the effective state for subsequent drains.",
+      "views.py:0033-0036 renders the privacy-choices section with the notice text and a single 'Switch off'/'Switch on' form per purpose, giving symmetric on/off controls.",
+      "store.py:0009 NOTICE states insights and promotions each require separate optional consent and can be switched off as easily as on, with withdrawal applying to future processing."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "No exception applies to the withdrawal itself; the requirement is that withdrawal stops future report generation.",
+      "The unaffected borrower's consent remains on, so their queued report is not covered by the withdrawal and may still be generated (store.py:0137-0139).",
+      "Restriction (restricted flag) is a separate control (store.py:0127-0128) and is not the withdrawal mechanism assessed here."
+    ],
+    "required_controls": [
+      "Symmetric toggle: same form/route (/preference) and same effort to switch insights off as on (views.py:0034-0036; store.py:0092-0098).",
+      "Prior information: notice text describing optional separate consent and withdrawal before the toggle is shown (store.py:0009; views.py:0024-0025, 0033).",
+      "Cancellation of already-queued report jobs on withdrawal (store.py:0096-0098).",
+      "Execution-time re-check of consent so any re-queued or retried report is not generated after withdrawal (store.py:0137-0139 via enabled()).",
+      "Per-owner scoping so cancellation and the execution check affect only the withdrawing borrower's cases (store.py:0098, 0137)."
+    ],
+    "assessment_limits": [
+      "Assessment is static reading of the supplied source; no code was executed and no runtime behavior was observed.",
+      "The scenario's 'queue reopened and drained twice' is treated as a description of the test, not as evidence of execution; conclusions rest on the drain()/enabled() logic.",
+      "Retry semantics beyond re-draining queued jobs are not modeled in the source; only the queued-state cancellation and the execution-time consent check are assessed.",
+      "No assessment of other GDPR obligations (e.g., promotions/objection, erasure, portability) beyond their incidental appearance in the same functions.",
+      "Compliance is not decided from the rule text alone; it is inferred from the cited source coordinates under the stipulated scenario facts."
+    ]
+  }
+}

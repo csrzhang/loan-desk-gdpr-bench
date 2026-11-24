@@ -1,0 +1,104 @@
+{
+  "stage": "regulatory_arbiter",
+  "input_hash": "a498dafd5780b324f7397f31a45bc76e7db579bd07d7e1379a13c4c8f82743e7",
+  "seconds": 5.676,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 13920,
+        "output_tokens": 1341,
+        "total_tokens": 15261,
+        "input_token_details": {
+          "cache_read": 1152,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "case_id": "case-2122e06a1c186841",
+    "rule_id": "GDPR05",
+    "status": "SUPPORTED",
+    "short_explanation": "Direct collection presents NOTICE with the /apply form (views.py 0031 via notice() 0024-0025), and the officer 'verify' import writes a source-specific 'partner notice' naming the Income Registry and underwriting purpose plus NOTICE into the case inbox at import time (store.py 0160), rendered in the case history (views.py 0076, 0079) and retrievable via store.access (store.py 0120). No in-scope counterexample found.",
+    "detailed_explanation": "Code facts: The scoped processing information is the NOTICE constant (store.py 0009). At direct collection, views.dashboard builds the /apply form fields beginning with notice() (views.py 0031), and notice() renders NOTICE inside a details block (views.py 0024-0025); the form posts to /apply, routed to store.submit (app.py 0083-0084), which inserts the case and records an 'application' event citing the notice version (store.py 0065-0083). For the indirect import, POST /case/<id>/verify routes to store.action op 'verify' (app.py 0097-0098); the staff-only verify branch (store.py 0157-0160) writes an event of kind 'partner notice' with body \"Income Registry supplied income band ... for underwriting. \"+NOTICE via event() (store.py 0051-0053) into the events table. That event is rendered in the case history (views.py 0076, 0079), and store.access returns processing_information=NOTICE (store.py 0120), served as JSON by the access route (app.py 0100-0109).\n\nRequirement: The rule requires scoped processing information to be made available at direct collection and a source-specific notice for the indirect Income Registry import by its applicable deadline, with immediate delivery to the case inbox a feasible means in this fixture. The scenario stipulates a direct application plus a synthetic Income Registry import, no prior outward disclosure and no Art. 14(5) exception, and that the applicant may open the case immediately or leave it unopened.\n\nJustification: Both scoped paths are present in source. The direct-collection form always includes notice() before submission, so the information is made available at collection. The verify action unconditionally records the source-specific partner notice (naming the Income Registry and underwriting purpose, plus NOTICE) to the case inbox at the moment of import, so delivery does not depend on the applicant opening the case; the \"may leave it unopened\" variable therefore does not defeat delivery. No supported in-scope counterexample was found, so the verdict is SUPPORTED. This is a static source reading; no execution was performed, and no claim is made about upstream or hidden implementation.",
+    "evidence": [
+      {
+        "artifact": "store.py",
+        "start_line": 9,
+        "end_line": 9,
+        "role": "operation",
+        "explanation": "NOTICE constant holds the scoped processing information (controller, purposes, consent basis, limits, rights, retention)."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 24,
+        "end_line": 25,
+        "role": "operation",
+        "explanation": "notice() renders NOTICE as a details block."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 31,
+        "end_line": 32,
+        "role": "control",
+        "explanation": "The /apply form fields begin with notice(), placing the notice at direct collection before submission."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 83,
+        "end_line": 84,
+        "role": "propagation",
+        "explanation": "POST /apply routes to store.submit."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 65,
+        "end_line": 83,
+        "role": "operation",
+        "explanation": "submit() records the application and an 'application' event citing the notice version."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 97,
+        "end_line": 98,
+        "role": "trigger",
+        "explanation": "POST /case/<id>/verify routes to store.action op 'verify'."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 157,
+        "end_line": 160,
+        "role": "operation",
+        "explanation": "verify writes a 'partner notice' event naming Income Registry and underwriting purpose plus NOTICE into the case inbox."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 51,
+        "end_line": 53,
+        "role": "propagation",
+        "explanation": "event() inserts the notice into the events table (case inbox store)."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 76,
+        "end_line": 79,
+        "role": "propagation",
+        "explanation": "Case history renders events, making the partner notice retrievable in the case inbox."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 118,
+        "end_line": 122,
+        "role": "operation",
+        "explanation": "access() returns processing_information=NOTICE and the timeline events."
+      }
+    ],
+    "missing_information": [
+      "Whether the applicant opens the case inbox is a scenario variable; the code records the notice to the events table at verify time (store.py 0160), so delivery does not depend on opening.",
+      "Adequacy of NOTICE wording against Art. 13(1)-(2)/14(1)-(3) content elements is judged only from the constant text (store.py 0009), not from legal interpretation of completeness.",
+      "The verify notice is produced only when an officer performs 'verify'; the code does not itself trigger the import or the notice automatically."
+    ]
+  }
+}

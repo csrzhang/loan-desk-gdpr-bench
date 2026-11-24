@@ -1,0 +1,53 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "549dbb02c3ae482f5e243a33cf80c0af001996e54071b0d1f66a98e8096ca8df",
+  "seconds": 5.627,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9879,
+        "output_tokens": 889,
+        "total_tokens": 10768,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "On a GET request to /case/<cid>/access by an authenticated session user, the service must return a copy of the data for that single case (cid) containing: the case record (supplied and derived fields, including decision stage/route/confirmed band), processing information (NOTICE), the partner source event, the decision event, related events and jobs, and the owner's preferences — and must not include any other applicant's data.",
+    "applicability_facts": [
+      "Scenario: authenticated applicant requests the copy of one specified case, including derived decision, source, linked activities and processing information.",
+      "Scenario: another applicant has separate data in the same database.",
+      "app.py:0100-0106 routes GET /case/<cid>/access to store.access(db,c) after requiring who==c['owner'] (403 'Borrower required.' otherwise).",
+      "app.py:0095 resolves the case via store.get_case(db,who,cid), which selects only the row with id=cid AND (owner=who OR officer=who) (store.py:0055-0058).",
+      "store.py:0118-0122 access() builds the copy from c (the single case row), events WHERE cid=?, jobs WHERE cid=?, and choices WHERE owner=c['owner'] only.",
+      "store.py:0120 includes processing_information=NOTICE (store.py:0009) and the timeline of events, which carries the partner notice (store.py:0160) and decision (store.py:0135, 0196) entries.",
+      "app.py:0107-0109 returns the copy as application/json with Content-Disposition attachment; app.py:0030 sets Cache-Control no-store."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "Officer (non-owner) sessions are refused the access copy with 403 (app.py:0105); the scenario concerns the borrower, so this does not exclude applicability.",
+      "No restriction/erasure exception is applied to the access route in the supplied source; access is served regardless of stage or restricted flag.",
+      "No third-party-rights redaction mechanism exists in the supplied source; the isolation requirement is met structurally by per-cid and per-owner queries rather than by redaction."
+    ],
+    "required_controls": [
+      "Owner-only authorization on the access route: require(who==c['owner']) before store.access (app.py:0105).",
+      "Case scoping: get_case filters by id AND (owner=? OR officer=?) (store.py:0056).",
+      "Event and job scoping by cid: SELECT ... FROM events/jobs WHERE cid=? (store.py:0120-0121).",
+      "Preference scoping by the case owner only: choices WHERE owner=c['owner'] (store.py:0122).",
+      "Inclusion of processing information (NOTICE) and derived/decision data via the case row and decision events (store.py:0120, 0135, 0196).",
+      "Non-cacheable delivery of the copy (Cache-Control: no-store, app.py:0030) as an attachment (app.py:0108)."
+    ],
+    "assessment_limits": [
+      "Assessment is static reading of the supplied app.py, store.py, views.py and style.css; no code was executed and no runtime behavior was observed.",
+      "The scenario's 'verified borrower' status is treated as the authenticated owner session; the source does not model a separate verification flag for access.",
+      "Whether the returned copy is complete for every derived field (e.g., summaries.title, receiver payloads) is not asserted; only the fields enumerated in store.access are evidenced.",
+      "No conclusion is drawn about other GDPR articles or about upstream/other versions of the code.",
+      "The scenario prose is not treated as code evidence; only the supplied source coordinates are cited."
+    ]
+  }
+}

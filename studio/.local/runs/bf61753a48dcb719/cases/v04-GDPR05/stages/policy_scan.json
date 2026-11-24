@@ -1,0 +1,48 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "9a63f180de8bd6465169fbfbd9b2426ee46e3b49344072773784b8d4c44ca064",
+  "seconds": 5.21,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9898,
+        "output_tokens": 722,
+        "total_tokens": 10620,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "At direct collection (the /apply submission) the scoped processing information (NOTICE) must be made available to the applicant, and for the indirect Income Registry import (the officer \"verify\" action) a source-specific notice must be delivered to the case inbox by its applicable deadline; immediate delivery to the case inbox is a feasible means in this fixture.",
+    "applicability_facts": [
+      "Scenario: direct application plus a synthetic Income Registry import; no prior outward disclosure and no Art. 14(5) exception.",
+      "Direct collection path exists: POST /apply -> store.submit (app.py 0083-0084; store.py 0065-0083).",
+      "Indirect import path exists: officer POST /case/<id>/verify -> store.action op 'verify' (app.py 0097-0098; store.py 0157-0160).",
+      "NOTICE text is defined in store.py 0009 and rendered on the dashboard form via views.notice() (views.py 0024-0025, 0031).",
+      "The verify action writes a 'partner notice' event containing the source-specific text plus NOTICE into the case inbox (store.py 0160), displayed in the case history (views.py 0076, 0079)."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "Art. 14(5) exceptions (prior knowledge, disproportionate effort, etc.) are stipulated as absent in the scenario.",
+      "No international transfer is modeled (NOTICE, store.py 0009)."
+    ],
+    "required_controls": [
+      "Direct collection: NOTICE must be presented with the application form before submission — views.dashboard includes notice() in the /apply form fields (views.py 0031).",
+      "Indirect import: on 'verify', a source-specific notice naming the Income Registry and the underwriting purpose must be recorded to the case inbox — store.py 0160 event body 'Income Registry supplied income band ... for underwriting. '+NOTICE.",
+      "Notice must be retrievable by the applicant — store.access returns processing_information=NOTICE (store.py 0120) and the case history renders events (views.py 0076).",
+      "Notice content must cover the scoped processing information (controller, purposes, legal basis/consent, limits, rights) — NOTICE constant (store.py 0009)."
+    ],
+    "assessment_limits": [
+      "Assessment is static source reading only; no execution, browsing or retrieval was performed.",
+      "Whether the applicant actually opens the case inbox is a scenario variable; the code records the notice to the inbox regardless, but delivery timing/feasibility beyond recording is not verifiable from source.",
+      "Adequacy of NOTICE wording against Art. 13(1)-(2)/14(1)-(3) content elements is judged only from the constant text, not from legal interpretation of completeness.",
+      "The verify notice is only produced when an officer performs 'verify'; the code does not itself trigger import or notice automatically.",
+      "No claim is made about upstream or hidden implementation."
+    ]
+  }
+}

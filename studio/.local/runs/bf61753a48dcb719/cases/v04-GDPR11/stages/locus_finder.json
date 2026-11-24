@@ -1,0 +1,79 @@
+{
+  "stage": "locus_finder",
+  "input_hash": "f9978a0ea3be3e7f726f9b9cacb6f0819d19665eea88424faa50f7fb83c7aa49",
+  "seconds": 4.461,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 10665,
+        "output_tokens": 850,
+        "total_tokens": 11515,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "loci": [
+      {
+        "artifact": "store.py",
+        "start_line": 92,
+        "end_line": 98,
+        "rationale": "preference() entrypoint: accepts purpose 'objection' with value 'on', persists it as a per-owner choices row, and on ('objection','on') cancels queued 'promotion' jobs for that owner's cases — the objection's effect on pending promotions."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 100,
+        "end_line": 103,
+        "rationale": "eligible_campaign() is the marketing selection predicate: requires promotions enabled and objection not enabled, evaluated per owner, so an objecting subject is excluded while other subscribers remain eligible."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 105,
+        "end_line": 109,
+        "rationale": "campaign() queues 'promotion' jobs only for cases passing eligible_campaign(), i.e. selection is gated on absence of objection."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 140,
+        "end_line": 142,
+        "rationale": "drain() re-checks eligible_campaign() at processing time before emitting a promotion event, so a queued promotion is cancelled rather than sent after objection."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 126,
+        "end_line": 128,
+        "rationale": "drain() skip logic applies only to restricted cases and non-'score' jobs; objection does not block 'score' service-decision jobs, preserving necessary service processing."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 131,
+        "end_line": 135,
+        "rationale": "Service decision path ('score' job) is independent of marketing preferences, confirming service messages/decisions remain eligible despite objection."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 85,
+        "end_line": 90,
+        "rationale": "Routing: /preference POST invokes store.preference with purpose/value; /campaign POST invokes store.campaign — the two entrypoints that connect the objection and marketing selection paths."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 33,
+        "end_line": 36,
+        "rationale": "UI exposes the 'objection' preference toggle alongside promotions, showing the objection is a distinct per-owner control surfaced to the data subject."
+      }
+    ],
+    "path_summary": "Objection flows from /preference (app.py:85-86) into store.preference (store.py:92-98), which persists an 'objection'=on choices row and cancels queued 'promotion' jobs for that owner's cases. Marketing selection in eligible_campaign (store.py:100-103) requires promotions enabled and objection absent, gating campaign() queueing (store.py:105-109) and re-checked in drain() (store.py:140-142) so pending promotions are not delivered. Service 'score' jobs are unaffected by objection (store.py:126-128, 131-135), and eligibility is per-owner so non-objecting subscribers remain eligible.",
+    "missing_boundaries": [
+      "No runtime execution or observation was performed; assessment is static reading of the supplied artifacts only.",
+      "The scenario's 'campaign queued before objection' ordering is stipulated, not exercised; the code's cancellation of queued promotions (store.py:96-98) and drain-time re-check (store.py:140-142) are read statically.",
+      "Whether 'report' (insights) jobs should be blocked by an objection is not decided; the rule addresses direct marketing only, and store.py:96-98 cancels 'report' only for insights-off.",
+      "No upstream or hidden implementation is inferred; only app.py, store.py, views.py, style.css are considered."
+    ]
+  }
+}

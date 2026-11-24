@@ -1,0 +1,89 @@
+{
+  "stage": "counterexample_review",
+  "input_hash": "c8159290999aa1526f2a7d5ef9dae71932b4f68ec8bc9f67d9aa1afbbffc4ee0",
+  "seconds": 4.959,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 12468,
+        "output_tokens": 999,
+        "total_tokens": 13467,
+        "input_token_details": {
+          "cache_read": 896,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "recommended_status": "SUPPORTED",
+    "counterexamples": [
+      "No feasible in-scope counterexample found: erase is gated on stage=='abandoned' (store.py:0211), deletes the single case row (store.py:0212), and the only dependent tables (summaries, events, jobs) cascade with foreign_keys=ON (store.py:0026, 0039-0044). drain (store.py:0124-0143) iterates only rows present in jobs for the cid, so no replay path can recreate the target after deletion. The unrelated active case is untouched because DELETE is keyed by a single id and retrieval is per-cid/owner (store.py:0055-0058, app.py:0077)."
+    ],
+    "unsupported_assumptions": [
+      "Cascade effectiveness is asserted from static reading of PRAGMA foreign_keys=ON (store.py:0026); it is not runtime-verified, but the pragma is set on every connection opened by database(), which is the same connection used for the erase transaction, so the static inference is sound.",
+      "The predicate's 'business-retrievable copies' is read as the modeled tables (summary, events, jobs); receiver payloads and choices are not case-scoped copies of the target and are outside the named predicate."
+    ],
+    "anchors": [
+      {
+        "artifact": "store.py",
+        "start_line": 210,
+        "end_line": 212,
+        "role": "operation",
+        "explanation": "Erase gate requires stage=='abandoned' then DELETE FROM cases WHERE id=? — the sole deletion of the target case row."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 39,
+        "end_line": 44,
+        "role": "control",
+        "explanation": "summaries, events and jobs declare REFERENCES cases ON DELETE CASCADE, so the business-retrievable copies are removed with the case row."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 26,
+        "end_line": 26,
+        "role": "control",
+        "explanation": "PRAGMA foreign_keys=ON is applied on every connection, making the cascade effective for the erase transaction."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 124,
+        "end_line": 143,
+        "role": "propagation",
+        "explanation": "drain replays only jobs rows selected by cid; with the case and its jobs deleted there is no row to iterate, so no event insert or stage update can resurrect the target."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 55,
+        "end_line": 58,
+        "role": "control",
+        "explanation": "get_case scopes retrieval to owner/officer by cid, so deleting one case does not affect an unrelated active case."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 97,
+        "end_line": 99,
+        "role": "trigger",
+        "explanation": "POST /case/<cid>/erase dispatches to store.action(...,'erase'), confirming the erase path is reachable."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 205,
+        "end_line": 209,
+        "role": "trigger",
+        "explanation": "abandon sets stage='abandoned' and cancels queued jobs, establishing the eligible state the erase gate depends on."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 71,
+        "end_line": 71,
+        "role": "control",
+        "explanation": "UI exposes erase only for stage=='abandoned' owner cases, consistent with the eligibility gate."
+      }
+    ],
+    "review_summary": "Confirmed. The erase path (store.py:0210-0212) gates on stage=='abandoned' and deletes the case row; with PRAGMA foreign_keys=ON (store.py:0026) the ON DELETE CASCADE references on summaries, events and jobs (store.py:0039-0044) remove the business-retrievable copies. drain (store.py:0124-0143) iterates only existing jobs rows for the cid, so after deletion no replay can resurrect the target. Retrieval is per-cid/owner (store.py:0055-0058, app.py:0077), leaving an unrelated active case available. All in-scope targets are supported by static source reading; no feasible in-scope counterexample was found."
+  }
+}

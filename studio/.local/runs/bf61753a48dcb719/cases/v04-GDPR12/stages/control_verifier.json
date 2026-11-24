@@ -1,0 +1,138 @@
+{
+  "stage": "control_verifier",
+  "input_hash": "faf5aef29878d6cbaf483c7a1be54c75d5c82320b3db366a9309886760bc801d",
+  "seconds": 6.361,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 11833,
+        "output_tokens": 1338,
+        "total_tokens": 13171,
+        "input_token_details": {
+          "cache_read": 1152,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "checks": [
+      {
+        "target": "Authentication prerequisite before any /case route (app.py session resolution and unauthenticated branch)",
+        "required_behavior": "Unauthenticated requests must not reach the ordinary case or offer routes; only authenticated principals proceed.",
+        "observed_code_behavior": "Session id is read from the cookie, expired sessions are pruned, and `who` is derived from the session map. If `who` is empty, only GET / is permitted (login page); all other paths raise 401 before the case routing branch is reached.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "app.py",
+            "start_line": 44,
+            "end_line": 47,
+            "role": "operation",
+            "explanation": "Session id resolved and `who` derived from the in-memory session map."
+          },
+          {
+            "artifact": "app.py",
+            "start_line": 68,
+            "end_line": 70,
+            "role": "control",
+            "explanation": "Empty `who` restricts to GET / and otherwise raises 401, so unauthenticated requests cannot reach case routes."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Case lookup authorization gate store.get_case (owner OR assigned officer)",
+        "required_behavior": "Case row must be retrievable only when the authenticated principal is the owner or the assigned officer; otherwise denied.",
+        "observed_code_behavior": "get_case selects the row WHERE id=? AND (owner=? OR officer=?) with `who` bound to both placeholders, and raises a 404 Problem when no row matches. This is the single principal gate for both routes.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 55,
+            "end_line": 58,
+            "role": "control",
+            "explanation": "Query restricts to owner or officer and raises 404 otherwise."
+          },
+          {
+            "artifact": "app.py",
+            "start_line": 92,
+            "end_line": 95,
+            "role": "trigger",
+            "explanation": "Both /case/{id} and /case/{id}/offer resolve through store.get_case(db, who, cid) before any branch."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Ordinary case route /case/{id} (op is None)",
+        "required_behavior": "Only owner or assigned officer may view the ordinary case page; other borrowers and unassigned officers must be denied.",
+        "observed_code_behavior": "After get_case succeeds, the op-is-None branch builds the detail view from store.access on the gated row with no further principal check. A non-owner, non-assigned-officer principal fails get_case and receives 404 before this branch.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "app.py",
+            "start_line": 110,
+            "end_line": 112,
+            "role": "operation",
+            "explanation": "Ordinary case view served only after the get_case gate, using the gated case row."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 118,
+            "end_line": 122,
+            "role": "propagation",
+            "explanation": "access() derives timeline/jobs/preferences from the already-gated case object."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Offer download route /case/{id}/offer",
+        "required_behavior": "Only owner or assigned officer may download the offer; other borrowers and unassigned officers must be denied.",
+        "observed_code_behavior": "The offer branch runs after get_case succeeds; its added condition is stage in (accepted, offered) and not restricted (availability), not a principal check. The payload comes from store.offer on the gated case row. A non-owner, non-assigned-officer principal fails get_case and receives 404 before this branch.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "app.py",
+            "start_line": 100,
+            "end_line": 103,
+            "role": "operation",
+            "explanation": "Offer branch gated by get_case; stage/restriction is availability only."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 111,
+            "end_line": 112,
+            "role": "propagation",
+            "explanation": "offer() returns fields from the case object already restricted by get_case."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Dashboard listing principal set (app.py:0077)",
+        "required_behavior": "Case listing should be limited to the same permitted principal set (owner or assigned officer).",
+        "observed_code_behavior": "Dashboard query selects cases WHERE c.owner=? OR c.officer=? with `who` bound to both, consistent with the get_case gate.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "app.py",
+            "start_line": 77,
+            "end_line": 77,
+            "role": "control",
+            "explanation": "Listing filtered to owner or officer, matching the permitted principal set."
+          }
+        ],
+        "decisive_unknown": ""
+      }
+    ],
+    "proposed_status": "SUPPORTED",
+    "summary": "Both in-scope routes (/case/{id} and /case/{id}/offer) are reached only after store.get_case, which selects the case WHERE id=? AND (owner=? OR officer=?) and raises 404 otherwise. Unauthenticated requests are rejected at app.py:0068-0070 before case routing. The offer branch's stage/restriction condition is availability, not an access exception, and the owner-only check at app.py:0105 covers access/portable only. A non-owner, non-assigned-officer principal fails get_case and cannot reach either route. Static reading of the supplied snapshot; no execution performed.",
+    "missing_information": [
+      "No runtime execution or oracle was used; assessment is static reading of the supplied artifacts.",
+      "Behavior of code not present in the supplied artifacts cannot be assessed; no upstream or hidden implementation is inferred."
+    ]
+  }
+}

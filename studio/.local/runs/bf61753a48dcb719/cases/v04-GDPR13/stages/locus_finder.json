@@ -1,0 +1,80 @@
+{
+  "stage": "locus_finder",
+  "input_hash": "a720d72e25dc40a76d6d49924bd62e6309917206be2d7e74052cf4e389d26894",
+  "seconds": 4.983,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 10824,
+        "output_tokens": 953,
+        "total_tokens": 11777,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "loci": [
+      {
+        "artifact": "store.py",
+        "start_line": 74,
+        "end_line": 75,
+        "rationale": "Opt-in automatic route vs. default manual route: 'auto'=yes selects automatic, otherwise manual — establishes the manual alternative and the consent-gated automatic path."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 32,
+        "end_line": 32,
+        "rationale": "Applicant-facing checkbox explicitly choosing the automatic decision, stating withdrawal before decision and contest rights, and that leaving it unchecked gives human review on the same terms."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 131,
+        "end_line": 135,
+        "rationale": "Automatic scoring declines when amount exceeds the band limit and records the decision event — the qualifying automatic refusal."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 187,
+        "end_line": 190,
+        "rationale": "Appeal requires stage 'declined' and a non-empty statement, records the statement, and moves stage to 'contested' — contest plus applicant's view."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 191,
+        "end_line": 196,
+        "rationale": "Officer-only review (gated at 0153-0154) accepts 'contested' or pending manual cases, requires an outcome and reason, and sets stage to 'offered'/'declined' — effective human determination."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 53,
+        "end_line": 54,
+        "rationale": "UI exposes pre-decision 'Switch to manual review' while pending automatic, and the appeal form only at stage 'declined'."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 161,
+        "end_line": 164,
+        "rationale": "Pre-decision withdrawal: while stage is 'pending', route is switched to 'manual' and the change is logged — honoring withdrawal before decision."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 100,
+        "end_line": 103,
+        "rationale": "Offer endpoint serves the case amount/term only when stage is 'offered'/'accepted' and unrestricted (store.offer at 0111-0112), so an officer 'offered' reversal changes the actual offer."
+      }
+    ],
+    "path_summary": "Automatic route is opt-in at submission (store.py:0074-0075, views.py:0032); the score job declines when amount exceeds the band limit (store.py:0131-0135). A declined case exposes the appeal form (views.py:0054), which requires a non-empty statement and moves stage to 'contested' (store.py:0187-0190). Officer-only review (store.py:0153-0154) accepts 'contested' or pending manual cases and sets stage to 'offered'/'declined' with a reason (store.py:0191-0196; views.py:0061-0062). The offer endpoint serves the case amount/term only when stage is 'offered'/'accepted' and unrestricted (app.py:0100-0103; store.py:0111-0112), so an officer reversal changes the actual offer. Manual alternative is the default route (store.py:0075; views.py:0032), and pre-decision withdrawal switches route to 'manual' while pending (store.py:0161-0164; views.py:0053).",
+    "missing_boundaries": [
+      "Whether the refusal is 'significant' and the consent 'valid separate explicit' is stipulated by the scenario, not verifiable in source.",
+      "Effectiveness/independence of human review (meaningful consideration) is not determinable from source; only the recorded officer action and reason are observable.",
+      "Withdrawal of the automatic route is honored only while stage is 'pending' (store.py:0162); post-decision route change is not modeled.",
+      "Review is blocked while the case is restricted (store.py:0192) and the offer endpoint refuses restricted cases (app.py:0102); no contest path exists for an automatic 'offered' outcome (views.py:0054).",
+      "No execution, repository, or runtime tools were used; findings are static reading of the supplied artifacts only."
+    ]
+  }
+}

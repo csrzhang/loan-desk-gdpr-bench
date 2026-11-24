@@ -1,0 +1,79 @@
+{
+  "stage": "locus_finder",
+  "input_hash": "5c01b7c52eb6c46bc773e33978742e703d7615212b0b3ed0f98ae1a1d5dc6c18",
+  "seconds": 5.099,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 10810,
+        "output_tokens": 887,
+        "total_tokens": 11697,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "loci": [
+      {
+        "artifact": "store.py",
+        "start_line": 92,
+        "end_line": 98,
+        "rationale": "preference() is the withdrawal entrypoint: same route/validation as opt-in, and on ('insights','off') it cancels queued 'report' jobs scoped to that owner's cases (cid IN SELECT id FROM cases WHERE owner=?), leaving the other borrower's queued report untouched."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 85,
+        "end_line": 87,
+        "rationale": "The /preference POST route dispatches to store.preference with the submitted purpose/value, so switching off uses the identical form and route as switching on (symmetric withdrawal)."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 33,
+        "end_line": 36,
+        "rationale": "Privacy-choices UI renders a 'Switch off' control for an enabled purpose via the same /preference form, and states insights are optional and withdrawable at any time — the as-easy-as-opt-in control and prior information."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 9,
+        "end_line": 9,
+        "rationale": "NOTICE text informs beforehand that insights require separate optional consent, can be switched off as easily as on, and that withdrawal applies to future processing."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 124,
+        "end_line": 128,
+        "rationale": "drain() selects only state='queued' jobs and skips non-score jobs on restricted cases; cancelled report jobs are therefore not re-executed on a second drain (no retry path)."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 137,
+        "end_line": 139,
+        "rationale": "Execution-time gate: a 'report' job only produces output when enabled(db, owner, 'insights') is true, so withdrawn consent blocks generation even if a report job remained queued."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 88,
+        "end_line": 90,
+        "rationale": "enabled() reads the latest choice per owner/purpose, making the gate owner-scoped so the unaffected subscriber's consent still evaluates true."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 143,
+        "end_line": 143,
+        "rationale": "Job state is persisted after processing, so a completed or cancelled job is not re-run by subsequent drains."
+      }
+    ],
+    "path_summary": "Opt-in and withdrawal both flow through the /preference POST route (app.py:0085-0087) into store.preference (store.py:0092-0098), which appends a choices row and, on insights-off, cancels queued 'report' jobs for that owner's cases only. Prior information is supplied by NOTICE (store.py:0009) and the privacy-choices copy (views.py:0033-0036). Report generation is gated at execution time by enabled(owner,'insights') (store.py:0088-0090, 0137-0139), and drain() only picks state='queued' jobs (store.py:0124-0128) with state persisted (store.py:0143), so cancelled reports are not retried. Owner-scoped cancellation and the per-owner enabled() check preserve the unaffected borrower's queued report. Static reading only; no execution.",
+    "missing_boundaries": [
+      "No runtime verification: the scenario's 'drained twice' outcome is stipulated, not observed; no database was opened or drain executed.",
+      "No separate retry/backoff mechanism exists in the supplied source; 'retries' are represented only by repeated drain() calls over state='queued' jobs.",
+      "No upstream or hidden implementation is assessed; only app.py, store.py, views.py and style.css are supplied.",
+      "Promotions/objection withdrawal paths are out of scope for this rule and not relied upon."
+    ]
+  }
+}

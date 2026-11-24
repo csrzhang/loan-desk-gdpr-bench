@@ -1,0 +1,153 @@
+{
+  "stage": "control_verifier",
+  "input_hash": "296933d75f9b537678ae9c6169568450227531db49333ff60eaea9384b48c934",
+  "seconds": 6.221,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 11995,
+        "output_tokens": 1375,
+        "total_tokens": 13370,
+        "input_token_details": {
+          "cache_read": 1152,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "checks": [
+      {
+        "target": "store.preference objection persistence (choices row purpose='objection', value=1)",
+        "required_behavior": "Objection is recorded per data subject so it can block marketing selection and future processing.",
+        "observed_code_behavior": "preference() accepts purpose in ('insights','promotions','objection') with value 'on'/'off', inserts a choices row with int(value=='on'), so ('objection','on') persists value=1 for that owner.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 92,
+            "end_line": 95,
+            "role": "operation",
+            "explanation": "Validates purpose/value and inserts the per-owner choices row."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 88,
+            "end_line": 90,
+            "role": "control",
+            "explanation": "enabled() reads the latest choices row for owner/purpose, so the objection is consumed as a per-owner flag."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Cancellation of already-queued 'promotion' jobs on objection",
+        "required_behavior": "An objection cancels pending promotions already queued for that subject.",
+        "observed_code_behavior": "On (purpose,value) in (('promotions','off'),('objection','on')), kind is set to 'promotion' and queued promotion jobs for the owner's cases are updated to state='cancelled'.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 96,
+            "end_line": 98,
+            "role": "operation",
+            "explanation": "Objection-on triggers cancellation of queued promotion jobs scoped to the owner's cases."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Marketing selection predicate eligible_campaign()",
+        "required_behavior": "Selection requires promotions consent and absence of objection, per owner.",
+        "observed_code_behavior": "eligible_campaign() requires restricted=0, stage!='abandoned', enabled(promotions) and not enabled(objection), evaluated for the case's owner.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 100,
+            "end_line": 103,
+            "role": "control",
+            "explanation": "Objection presence excludes the owner from the campaign audience."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "campaign() queueing gated on eligible_campaign()",
+        "required_behavior": "Future marketing selection excludes objecting subjects.",
+        "observed_code_behavior": "campaign() iterates the officer's cases and queues 'promotion' only when eligible_campaign() is true.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 105,
+            "end_line": 109,
+            "role": "propagation",
+            "explanation": "Queueing is gated by the objection-aware predicate."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "drain() promotion processing re-check",
+        "required_behavior": "Queued promotions are not delivered after objection; processing-time re-check applies.",
+        "observed_code_behavior": "drain() completes a 'promotion' job only when eligible_campaign() is true; otherwise state remains 'cancelled'.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 140,
+            "end_line": 143,
+            "role": "control",
+            "explanation": "Promotion event emitted only if eligibility (including no objection) holds at drain time."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Service-decision 'score' jobs unaffected by objection",
+        "required_behavior": "Objection must not block necessary service processing.",
+        "observed_code_behavior": "drain() skip logic applies only to restricted cases and non-'score' jobs; the 'score' branch is independent of marketing preferences.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 126,
+            "end_line": 135,
+            "role": "exception",
+            "explanation": "Score/service path does not consult objection or promotions flags."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Unaffected subscriber eligibility (per-owner evaluation)",
+        "required_behavior": "A non-objecting subscriber remains eligible for marketing.",
+        "observed_code_behavior": "eligible_campaign() and preference cancellation are scoped by owner, so another owner's promotions are unaffected.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 98,
+            "end_line": 98,
+            "role": "propagation",
+            "explanation": "Cancellation scoped to cid IN (SELECT id FROM cases WHERE owner=?)."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 102,
+            "end_line": 103,
+            "role": "control",
+            "explanation": "Eligibility computed from the case owner's own preferences."
+          }
+        ],
+        "decisive_unknown": ""
+      }
+    ],
+    "proposed_status": "SUPPORTED",
+    "summary": "The objection path is fully wired: /preference (app.py:85-86) calls store.preference, which persists an 'objection'=on choices row (store.py:92-95) and cancels queued 'promotion' jobs for that owner's cases (store.py:96-98). Marketing selection in eligible_campaign() requires promotions enabled and objection absent (store.py:100-103), gating campaign() queueing (store.py:105-109) and re-checked at drain time (store.py:140-143), so pending promotions are cancelled rather than delivered. Service 'score' jobs are independent of marketing preferences (store.py:126-135), and eligibility/cancellation are owner-scoped, leaving non-objecting subscribers eligible. All in-scope targets are supported by static reading; no execution was performed.",
+    "missing_information": []
+  }
+}

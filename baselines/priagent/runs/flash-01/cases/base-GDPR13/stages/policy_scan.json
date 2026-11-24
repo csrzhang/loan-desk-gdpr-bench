@@ -1,0 +1,57 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "4a9f5a1aa7615335a7bec4db28fcae93007ec378b1fe255d390d443d68996285",
+  "seconds": 6.036,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9917,
+        "output_tokens": 884,
+        "total_tokens": 10801,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "After a qualifying automatic credit refusal, the applicant can submit a statement, contest the refusal, and obtain effective human review whose authorized reversal changes the actual offer; a manual (non-automatic) alternative is available, and pre-decision withdrawal of the automatic route is honored.",
+    "applicability_facts": [
+      "Scenario stipulates a qualifying significant automatic credit refusal (Art. 22(1)) and valid separate explicit consent (Art. 22(2)(c)).",
+      "Applicant contests, submits their view, and an authorized officer approves (reversal).",
+      "Manual selection and pre-decision withdrawal are also exercised.",
+      "store.py:0075 route is 'automatic' only when the applicant checks the explicit-consent box; otherwise 'manual'.",
+      "store.py:0131-0135 automatic scoring sets stage 'declined' when amount exceeds the income-band limit.",
+      "store.py:0187-0190 appeal requires stage 'declined' plus a non-empty statement, records it, and moves stage to 'contested'.",
+      "store.py:0191-0196 review requires staff, stage 'contested' (or pending manual), a result of 'offered'/'declined' and a reason; it writes the new stage.",
+      "store.py:0161-0164 withdraw-auto requires stage 'pending' and switches route to 'manual'.",
+      "store.py:0111-0112 offer payload is derived from the case row (amount/term), so a reversal to 'offered' changes the actual offer."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "Art. 22(2)(c) explicit consent is stipulated as valid, so the Art. 22(2) prohibition exception applies as an input, not a finding.",
+      "No Art. 22(2)(a) contract-necessity or (b) legal-authorisation exception is relied on.",
+      "Withdrawal of the automatic route is only honored while stage is 'pending' (store.py:0162); after a decision it is refused, consistent with pre-decision withdrawal only."
+    ],
+    "required_controls": [
+      "Explicit-consent gate for the automatic route: store.py:0074-0075 (auto='yes' required; otherwise manual).",
+      "Manual alternative on the same terms: store.py:0075-0076, views.py:0032 (unchecked box = human review).",
+      "Pre-decision withdrawal to manual: store.py:0161-0164, views.py:0053.",
+      "Contest with applicant statement: store.py:0187-0190, views.py:0054.",
+      "Authorized human review with recorded outcome and reasons: store.py:0153-0154 (staff-only), 0191-0196, views.py:0061-0062.",
+      "Reversal changes the actual offer: store.py:0195 (stage set to 'offered') and 0111-0112 (offer read from case row); app.py:0100-0103 gates offer download on stage accepted/offered.",
+      "Audit trail of appeal and decision: store.py:0189, 0196 (events)."
+    ],
+    "assessment_limits": [
+      "Assessment is limited to the supplied source text; no execution, browsing or retrieval was performed.",
+      "Compliance is not decided from the rule description alone; only the named predicate is assessed against the supplied code.",
+      "The 'effective' quality of human review is assessed only structurally (staff authorization, recorded reasons, stage change); no evaluation of reviewer independence or substantive adequacy beyond the code.",
+      "Whether the refusal is 'significant' and consent 'valid/separate' are stipulated scenario inputs, not verified in code.",
+      "No legal deadlines or additional obligations are inferred.",
+      "Upstream implementation is not assumed; only the provided artifacts establish behavior."
+    ]
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "340a20d96b3292867d89d1d4288daeb18d11816153841346dcbdb4a3abc40c28",
+  "seconds": 5.541,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9861,
+        "output_tokens": 778,
+        "total_tokens": 10639,
+        "input_token_details": {
+          "cache_read": 9727,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "The loan application form and the accepted POST /apply payload (and everything persisted or sent onward from it) must be limited to the fields necessary for the stated purposes: contact email (delivery of the offer), amount and term (requested offer), and income band (assessment). No field without a business purpose in this fixture (e.g. a hobby) may be collected, accepted, persisted or forwarded.",
+    "applicability_facts": [
+      "Scenario: applicant submits a loan application with email for delivery, amount and term for the requested offer, income band for assessment.",
+      "Scenario: a hobby field has no business purpose in this fixture, so collecting it would exceed necessity.",
+      "store.py:0067 submit() enforces an allowlist: set(data) <= {email, amount, term, income, auto} and rejects any other field with 'Unexpected application field.'",
+      "views.py:0031-0032 the application form renders only email, amount, term, income and the optional 'auto' consent checkbox.",
+      "store.py:0077-0078 persists only owner, officer, email, amount, term, income, route, stage; no hobby or free-text field is stored.",
+      "store.py:0112 offer() sends onward only case id, email, amount and term; store.py:0116 portable() exports only email, amount and income.",
+      "app.py:0053-0055 parses the form body with max_num_fields=18 and rejects duplicate fields, so the accepted payload is bounded."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "The 'auto' checkbox is an optional consent/route choice, not an extra data field; it is not a necessity exception but is outside the data-minimization scope of applicant attributes.",
+      "No other exception (legal obligation, contract necessity beyond the listed fields) is invoked in the supplied source; the NOTICE at store.py:0009 states only email, amount, term and income band are processed."
+    ],
+    "required_controls": [
+      "Server-side allowlist on the accepted application payload (store.py:0067) rejecting any field outside {email, amount, term, income, auto}.",
+      "Form rendering limited to the necessary inputs (views.py:0031-0032).",
+      "Persistence limited to necessary columns (store.py:0036-0038 schema; store.py:0077-0078 insert).",
+      "Onward disclosure limited to necessary fields: offer() at store.py:0112 and portable() at store.py:0116.",
+      "Bounded request parsing (app.py:0052-0055) so oversized or duplicate payloads are rejected before acceptance."
+    ],
+    "assessment_limits": [
+      "Assessment is static reading of the supplied source only; no code was executed and no runtime behavior was observed.",
+      "Only the named obligation (GDPR01, Art. 5(1)(c) application-field minimization) is assessed; other GDPR duties are out of scope.",
+      "The 'auto' consent field and preference/campaign flows are noted but not evaluated for necessity here.",
+      "Whether the officer-side 'verify' band import (store.py:0158-0160) is necessary is not decided; it concerns a partner confirmation, not applicant form input.",
+      "No conclusion is drawn about upstream or hidden implementations; only the supplied artifacts establish the controls."
+    ]
+  }
+}

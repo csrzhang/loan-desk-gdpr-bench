@@ -1,0 +1,63 @@
+{
+  "case_id": "v04-GDPR01",
+  "verdict": "SUPPORTED",
+  "explanation": "Code facts: The dashboard form (views.py:0031-0032) renders exactly the contact email input, requested amount input, term select (6/12/24/36), income-band select (low/medium/high) and an optional \"auto\" checkbox; no hobby or other free-text attribute is offered. POST /apply (app.py:0083-0084) passes the parsed data dict straight to store.submit, and the body is parsed as urlencoded with size<=16000, max_num_fields=18 and duplicate rejection (app.py:0050-0055). submit() (store.py:0065-0067) requires set(data) <= {\"email\",\"amount\",\"term\",\"income\",\"auto\"} and raises \"Unexpected application field.\" otherwise, so a hobby key is rejected before any write. Accepted values are validated (store.py:0069-0074) and the INSERT (store.py:0077-0078) writes only owner, officer, email, amount, term, income, route, stage into the cases table whose columns (store.py:0036-0038) contain no purposeless attribute. Onward, offer() returns only case id, email, amount, term (store.py:0111-0112) and portable() only email, amount, income (store.py:0114-0116).\n\nRequirement: Art. 5(1)(c) as scoped here requires that only necessary applicant inputs be collected through the form and accepted payload, including what is persisted or sent onward. The scenario supplies the trigger: email for delivery, amount and term for the requested offer, income band for assessment, and states that a hobby has no business purpose in this fixture. No exception is invoked; the NOTICE (store.py:0009) likewise describes only email, amount, term and income band.\n\nJustification: Each in-scope stage is bounded to the necessary set: the form offers no purposeless input, the server-side allowlist rejects any unexpected field such as hobby before persistence, the schema and INSERT persist only necessary attributes, and the two onward paths (offer, portable) forward only necessary fields. No supported in-scope counterexample exists in the supplied source, and no decisive unresolved dependency remains, so the predicate is satisfied. The optional \"auto\" checkbox is a route/consent choice rather than an applicant data attribute, and the officer-side verify band import (store.py:0157-0160) concerns a partner confirmation rather than applicant form input; both are outside this named predicate. This is a static reading of the supplied artifacts; no code was executed.",
+  "evidence": [
+    {
+      "path": "views.py",
+      "start_line": 31,
+      "end_line": 32,
+      "quote": "        fields=notice()+inputbox(\"Contact email\",\"email\",\"email\")+inputbox(\"Requested amount (EUR)\",\"amount\",\"number\",'min=\"100\" max=\"100000\"')+select(\"Term in months\",\"term\",[6,12,24,36])+select(\"Income band\",\"income\",[\"low\",\"medium\",\"high\"])\n        fields+='<label class=\"check\"><input type=\"checkbox\" name=\"auto\" value=\"yes\">I explicitly choose an automatic credit decision. Amounts above the income limit may be declined. I can withdraw before the decision and contest a refusal. Leave unchecked for human review on the same terms.</label>'",
+      "supports": "Application form renders only email, amount, term, income band and the optional 'auto' route checkbox; no purposeless input such as a hobby is offered."
+    },
+    {
+      "path": "app.py",
+      "start_line": 83,
+      "end_line": 84,
+      "quote": "                    elif path==\"/apply\" and method==\"POST\":\n                        location=\"/case/\"+str(store.submit(db,who,data))",
+      "supports": "POST /apply passes the parsed data dict directly to store.submit, so submit's allowlist governs what is accepted."
+    },
+    {
+      "path": "store.py",
+      "start_line": 65,
+      "end_line": 67,
+      "quote": "def submit(db, who, data):\n    require(who in CUSTOMERS,\"Borrower account required.\",403)\n    require(set(data) <= {\"email\",\"amount\",\"term\",\"income\",\"auto\"},\"Unexpected application field.\")",
+      "supports": "submit() enforces set(data) <= {email, amount, term, income, auto} and rejects any other field with 'Unexpected application field.' — the decisive minimization control."
+    },
+    {
+      "path": "store.py",
+      "start_line": 73,
+      "end_line": 78,
+      "quote": "    income = data.get(\"income\",\"\")\n    require(income in LIMITS and data.get(\"auto\",\"\") in (\"\",\"yes\"),\"Invalid application choice.\")\n    route = \"automatic\" if data.get(\"auto\")==\"yes\" else \"manual\"\n    officer = dict(zip(CUSTOMERS,OFFICERS))[who]\n    cid = db.execute(\"INSERT INTO cases(owner,officer,email,amount,term,income,route,stage) VALUES(?,?,?,?,?,?,?,?)\",\n                     (who,officer,email(data.get(\"email\",\"\")),amount,term,income,route,\"pending\")).lastrowid",
+      "supports": "Income band and route validated, then INSERT persists only owner, officer, email, amount, term, income, route, stage; no extra applicant attribute is stored."
+    },
+    {
+      "path": "store.py",
+      "start_line": 36,
+      "end_line": 38,
+      "quote": "        CREATE TABLE IF NOT EXISTS cases(id INTEGER PRIMARY KEY AUTOINCREMENT, owner TEXT, officer TEXT,\n          email TEXT, amount INTEGER, term INTEGER, income TEXT, confirmed TEXT, route TEXT,\n          stage TEXT, restricted INTEGER DEFAULT 0);",
+      "supports": "cases schema columns (email, amount, term, income, confirmed, route, stage) contain no field lacking a business purpose in this fixture."
+    },
+    {
+      "path": "store.py",
+      "start_line": 111,
+      "end_line": 112,
+      "quote": "def offer(db,c):\n    return {\"case\":c[\"id\"],\"to\":c[\"email\"],\"amount_eur\":c[\"amount\"],\"term_months\":c[\"term\"]}",
+      "supports": "offer() sends onward only case id, email, amount and term — the necessary delivery/offer fields."
+    },
+    {
+      "path": "store.py",
+      "start_line": 114,
+      "end_line": 116,
+      "quote": "def portable(c):\n    require(c[\"stage\"]==\"accepted\",\"Accept an offer to export this contract.\",409)\n    return {k:c[k] for k in (\"email\",\"amount\",\"income\")}",
+      "supports": "portable() exports only email, amount and income, bounding onward disclosure of applicant fields."
+    },
+    {
+      "path": "app.py",
+      "start_line": 50,
+      "end_line": 55,
+      "quote": "                require(env.get(\"CONTENT_TYPE\",\"\").split(\";\")[0]==\"application/x-www-form-urlencoded\",\"Expected form fields.\",415)\n                size=int(env.get(\"CONTENT_LENGTH\") or 0)\n                require(0<=size<=16000,\"Form too large.\",413)\n                parsed=parse_qs(env[\"wsgi.input\"].read(size).decode(),keep_blank_values=True,max_num_fields=18)\n                require(all(len(v)==1 for v in parsed.values()),\"Duplicate form field.\")\n                data={k:v[0] for k,v in parsed.items()}",
+      "supports": "POST body constrained to urlencoded form, size <=16000, max_num_fields=18, duplicates rejected before flattening into data."
+    }
+  ]
+}

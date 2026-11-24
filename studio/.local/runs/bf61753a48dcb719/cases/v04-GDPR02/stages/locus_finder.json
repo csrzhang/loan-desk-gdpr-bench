@@ -1,0 +1,79 @@
+{
+  "stage": "locus_finder",
+  "input_hash": "3963bbebc800a135d0e55944e703462f5c7712cae33c36a20adbedf069594111",
+  "seconds": 4.671,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 10449,
+        "output_tokens": 810,
+        "total_tokens": 11259,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "loci": [
+      {
+        "artifact": "store.py",
+        "start_line": 157,
+        "end_line": 160,
+        "rationale": "Entry point for the partner-confirmed band: verify writes data['band'] into cases.confirmed and logs it as supplied 'for underwriting', establishing the purpose-bound field."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 131,
+        "end_line": 135,
+        "rationale": "Only read of the confirmed band (band=c['confirmed'] or c['income']) is in the automatic score/underwriting decision branch — underwriting-only use."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 100,
+        "end_line": 103,
+        "rationale": "Marketing audience predicate eligible_campaign selects on owner, restricted, stage and promotions/objection choices only; no income or confirmed band is consulted."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 105,
+        "end_line": 109,
+        "rationale": "campaign() iterates officer's cases and queues promotion jobs solely via eligible_campaign, so audience selection cannot reach the confirmed band."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 140,
+        "end_line": 142,
+        "rationale": "Promotion delivery emits a generic message ('A new loan offer is available.') with no income band, and is gated by eligible_campaign."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 165,
+        "end_line": 171,
+        "rationale": "Owner-initiated promotion action is gated by eligible_campaign (permitted fields only), not by the confirmed band."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 111,
+        "end_line": 112,
+        "rationale": "Offer payload exposes case id, email, amount, term only — the confirmed band is not carried into offer/marketing-adjacent output."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 92,
+        "end_line": 98,
+        "rationale": "Preference store defines the permitted subscription/objection fields (promotions, objection) that marketing eligibility relies on, and cancels queued promotions on opt-out/objection."
+      }
+    ],
+    "path_summary": "Partner band enters via action 'verify' (store.py:0157-0160) into cases.confirmed. The only consumer of cases.confirmed is the automatic score branch in drain (store.py:0131-0135), i.e. underwriting. Marketing audience selection (eligible_campaign, store.py:0100-0103) and delivery (drain promotion branch, store.py:0140-0142; action promotion, store.py:0165-0171) use only owner identity, promotions/objection choices and case eligibility (restricted, stage). Offer output (store.py:0111-0112) omits the band. Static review indicates the confirmed band is not used for marketing selection or delivery, consistent with the purpose-limitation predicate; no compatible-purpose or new-legal-basis path for marketing use of the band exists in the supplied source.",
+    "missing_boundaries": [
+      "No execution or runtime observation was performed; assessment is static source review only.",
+      "portable() (store.py:0114-0116) exports the declared income field on a data-portability request; that is a separate data-subject right, not marketing use, and is outside this predicate.",
+      "No upstream or hidden implementation is inferred; only the supplied artifacts are authoritative.",
+      "Other GDPR duties (e.g. Article 6(1) bases, transparency) are out of scope for this rule."
+    ]
+  }
+}

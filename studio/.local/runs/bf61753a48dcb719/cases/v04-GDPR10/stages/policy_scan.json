@@ -1,0 +1,63 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "eea893d84be6c1e2fb4db93b2f8dd0570f9c2d787dfa3157ccba58dfc089aea8",
+  "seconds": 11.365,
+  "invocations": 2,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9885,
+        "output_tokens": 735,
+        "total_tokens": 10620,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    },
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9885,
+        "output_tokens": 711,
+        "total_tokens": 10596,
+        "input_token_details": {
+          "cache_read": 9728,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "For an accepted contract, the four borrower-provided fields (email, amount, term, income) are returned as machine-readable structured data to the borrower and, on request, transmitted to the selected local receiving controller; inferred decisions are excluded.",
+    "applicability_facts": [
+      "Scenario: automated processing of a current contract; borrower supplied email, amount, term and income (all four are provided data, not inferred).",
+      "Scenario: borrower downloads those fields and requests direct transfer to the feasible local receiver.",
+      "store.py:0036-0038 persists email, amount, term, income on the case row; store.py:0077-0078 stores them from the application form.",
+      "app.py:0100-0109 serves GET /case/<id>/portable as application/json with Content-Disposition attachment, gated to the owner (app.py:0105).",
+      "store.py:0201-0204 implements the 'transfer' action writing portable(c) to the receiver table for destination 'Local Credit Union'.",
+      "views.py:0069-0070 exposes the portable download and transfer controls only when stage=='accepted'."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "store.py:0115 requires stage=='accepted' (409 otherwise) — consistent with the contract-stage precondition, not an exemption.",
+      "app.py:0105 requires the requester to be the case owner (403 for officers) — recipient restriction, not an exemption.",
+      "store.py:0202 restricts transfer destination to 'Local Credit Union' — the scenario's feasible local receiver.",
+      "No exception in the supplied source removes the four fields from portability; no inferred decision field is included in portable()."
+    ],
+    "required_controls": [
+      "Machine-readable export: JSON serialization of the portable payload (app.py:0107-0109, mime application/json).",
+      "Completeness of the four provided fields: portable() must return email, amount, term and income (store.py:0116).",
+      "Exclusion of inferred decisions: portable() must not include stage/decision/confirmed-band or other derived outcomes.",
+      "Borrower-only access to the export (app.py:0105) and accepted-stage gating (store.py:0115).",
+      "Direct transfer on request to the selected local receiver, persisting the same portable payload (store.py:0201-0204)."
+    ],
+    "assessment_limits": [
+      "Static source reading only; no execution, no runtime verification of responses or receiver contents.",
+      "store.py:0116 returns only email, amount and income — 'term' is absent from portable(), so the four-field completeness control is not satisfied by the supplied source; the transfer path (store.py:0203) reuses the same incomplete payload.",
+      "Whether the scenario's case is actually in stage 'accepted' is a scenario fact, not verified against a database.",
+      "No assessment of other GDPR articles, of the receiver's onward handling, or of legal deadlines beyond the named rule."
+    ]
+  }
+}

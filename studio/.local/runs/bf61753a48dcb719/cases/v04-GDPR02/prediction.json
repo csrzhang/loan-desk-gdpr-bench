@@ -1,0 +1,70 @@
+{
+  "case_id": "v04-GDPR02",
+  "verdict": "SUPPORTED",
+  "explanation": "Code facts: The partner band enters state only through action \"verify\", which requires a pending, unrestricted case and writes data[\"band\"] into cases.confirmed while logging it as supplied \"for underwriting\" (store.py:0157-0160). The only read of c[\"confirmed\"] in the supplied source is in drain's score branch, where band=c[\"confirmed\"] or c[\"income\"] feeds the automatic underwriting decision and the amount/limit comparison (store.py:0131-0135). Marketing audience selection is eligible_campaign, which selects owner from cases filtered on restricted=0 and stage!='abandoned' and then requires the promotions choice on and the objection choice off (store.py:0100-0103); campaign() queues promotion jobs solely through that predicate (store.py:0105-0109). Promotion delivery in drain is gated by eligible_campaign and emits the generic body \"A new loan offer is available.\" (store.py:0140-0142); the owner-initiated \"promotion\" action is likewise gated by eligible_campaign and queues the job without band content (store.py:0165-0171). The offer payload carries only case id, email, amount and term (store.py:0111-0112). The permitted subscription fields are stored by preference() for purposes \"insights\", \"promotions\" and \"objection\", and opt-out/objection cancels queued promotion jobs (store.py:0092-0098). The other write to cases.confirmed is notify-release, a restriction-release verification step, not a marketing path (store.py:0179-0182).\n\nRequirement: Article 5(1)(b) with 6(4) as operationalized by this rule: partner-confirmed income must be used for underwriting only, while marketing selection and delivery may use only the permitted subscription and case eligibility fields. The scenario supplies the trigger — an opted-in subscriber with a partner-confirmed income band for underwriting and no compatible marketing purpose or new legal basis for targeting with that band — so the restriction is applicable and no compatible-purpose exception is available.\n\nJustification: The verified source shows the confirmed band is purpose-bound at entry to underwriting and consumed only by the underwriting decision branch; no marketing selection or delivery path reads income or confirmed, and promotion content and the offer payload omit the band. Marketing eligibility is driven exclusively by the permitted promotions/objection choices and case eligibility fields, which is exactly what the rule permits. No in-scope counterexample was found: the second write to confirmed (notify-release) and the display of confirmed in the case detail view are not marketing uses. Static source review only; no code was executed, and this verdict is scoped to the named purpose-limitation behavior, not whole-product compliance.",
+  "evidence": [
+    {
+      "path": "store.py",
+      "start_line": 157,
+      "end_line": 160,
+      "quote": "    if op==\"verify\":\n        require(stage==\"pending\" and not c[\"restricted\"] and data.get(\"band\") in LIMITS,\"Pending unrestricted case required.\")\n        db.execute(\"UPDATE cases SET confirmed=? WHERE id=?\",(data[\"band\"],cid))\n        event(db,cid,\"partner notice\",f\"Income Registry supplied income band {data['band']} today for underwriting. \"+NOTICE)",
+      "supports": "verify writes the partner band into cases.confirmed and logs it as supplied 'for underwriting', establishing the purpose-bound field."
+    },
+    {
+      "path": "store.py",
+      "start_line": 131,
+      "end_line": 135,
+      "quote": "        if kind==\"score\" and c[\"route\"]==\"automatic\" and c[\"stage\"]==\"pending\":\n            band=c[\"confirmed\"] or c[\"income\"]\n            stage=\"offered\" if c[\"amount\"]<=LIMITS[band] else \"declined\"\n            db.execute(\"UPDATE cases SET stage=? WHERE id=?\",(stage,cid))\n            event(db,cid,\"decision\",f\"Automatic {stage}. Amount {c['amount']} compared with {band} limit {LIMITS[band]}.\")",
+      "supports": "The only read of c['confirmed'] is the automatic score/underwriting decision (band=c['confirmed'] or c['income']); no marketing branch reads it."
+    },
+    {
+      "path": "store.py",
+      "start_line": 100,
+      "end_line": 103,
+      "quote": "def eligible_campaign(db,cid):\n    # Audience inputs are limited to identity, current preferences and case eligibility.\n    r=db.execute(\"SELECT owner FROM cases WHERE id=? AND restricted=0 AND stage!='abandoned'\",(cid,)).fetchone()\n    return bool(r and enabled(db,r[0],\"promotions\") and not enabled(db,r[0],\"objection\"))",
+      "supports": "eligible_campaign selects audience on owner, restricted=0, stage!='abandoned' and promotions/objection choices only; income and confirmed are not referenced."
+    },
+    {
+      "path": "store.py",
+      "start_line": 105,
+      "end_line": 109,
+      "quote": "def campaign(db, who):\n    require(who in OFFICERS,\"Officer account required.\",403)\n    for row in db.execute(\"SELECT id FROM cases WHERE officer=?\",(who,)):\n        if eligible_campaign(db,row[0]):\n            queue(db,row[0],\"promotion\")",
+      "supports": "campaign() queues promotion jobs solely through eligible_campaign, so officer-driven audience selection cannot reach the confirmed band."
+    },
+    {
+      "path": "store.py",
+      "start_line": 140,
+      "end_line": 142,
+      "quote": "        elif kind==\"promotion\" and eligible_campaign(db,cid):\n            event(db,cid,\"promotion\",\"A new loan offer is available.\")\n            state=\"done\"",
+      "supports": "Promotion delivery is gated by eligible_campaign and emits a generic message with no income band."
+    },
+    {
+      "path": "store.py",
+      "start_line": 165,
+      "end_line": 171,
+      "quote": "    elif op in (\"report\",\"promotion\"):\n        require(stage!=\"abandoned\",\"Application closed.\")\n        if op==\"report\":\n            require(enabled(db,who,\"insights\"),\"Enable optional insights first.\",409)\n        else:\n            require(eligible_campaign(db,cid),\"Outside campaign audience.\",409)\n        queue(db,cid,op)",
+      "supports": "Owner-initiated promotion action is gated by eligible_campaign (permitted fields only), not by the confirmed band."
+    },
+    {
+      "path": "store.py",
+      "start_line": 92,
+      "end_line": 98,
+      "quote": "def preference(db, who, purpose, value):\n    require(who in CUSTOMERS and purpose in (\"insights\",\"promotions\",\"objection\") and value in (\"on\",\"off\"),\"Invalid preference.\")\n    db.execute(\"INSERT INTO choices(owner,purpose,value,version,at) VALUES(?,?,?,?,?)\",\n               (who,purpose,int(value==\"on\"),VERSION,datetime.now(timezone.utc).isoformat()))\n    if (purpose,value)==(\"insights\",\"off\") or (purpose,value) in ((\"promotions\",\"off\"),(\"objection\",\"on\")):\n        kind = \"report\" if purpose==\"insights\" else \"promotion\"\n        db.execute(\"UPDATE jobs SET state='cancelled' WHERE kind=? AND state='queued' AND cid IN (SELECT id FROM cases WHERE owner=?)\",(kind,who))",
+      "supports": "Preference store defines the permitted promotions/objection subscription fields and cancels queued promotions on opt-out/objection."
+    },
+    {
+      "path": "store.py",
+      "start_line": 111,
+      "end_line": 112,
+      "quote": "def offer(db,c):\n    return {\"case\":c[\"id\"],\"to\":c[\"email\"],\"amount_eur\":c[\"amount\"],\"term_months\":c[\"term\"]}",
+      "supports": "Offer payload carries case id, email, amount, term only; the confirmed band is not propagated into this output."
+    },
+    {
+      "path": "store.py",
+      "start_line": 179,
+      "end_line": 182,
+      "quote": "    elif op==\"notify-release\":\n        require(c[\"restricted\"]==1 and data.get(\"reason\",\"\").strip() and data.get(\"band\") in LIMITS,\"Record verified band and finding.\")\n        db.execute(\"UPDATE cases SET restricted=2,confirmed=? WHERE id=?\",(data[\"band\"],cid))\n        event(db,cid,\"release notice\",\"Verification completed. Processing will resume. \"+data[\"reason\"])",
+      "supports": "notify-release also writes cases.confirmed, but only as a restriction-release verification step, not a marketing path."
+    }
+  ]
+}

@@ -1,0 +1,166 @@
+{
+  "stage": "control_verifier",
+  "input_hash": "111eb9abf308cffbaca559e2a9d3059509571500f953f7eb4b052d2e908ca107",
+  "seconds": 7.165,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 12257,
+        "output_tokens": 1612,
+        "total_tokens": 13869,
+        "input_token_details": {
+          "cache_read": 1152,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "checks": [
+      {
+        "target": "Automatic decision route opt-in vs. manual alternative (store.submit route selection)",
+        "required_behavior": "A manual (non-automatic) alternative must be available on the same terms, distinct from the automatic route.",
+        "observed_code_behavior": "route is 'automatic' only when data['auto']=='yes'; otherwise 'manual'. Both routes create the same case record with the same fields and officer; only the automatic route queues a 'score' job. Manual cases are reviewed by the officer via the 'review' action (stage pending + route manual).",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 74,
+            "end_line": 75,
+            "role": "control",
+            "explanation": "Route is manual unless 'auto'=='yes'; same case fields for both routes."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 77,
+            "end_line": 82,
+            "role": "operation",
+            "explanation": "Identical case insert for both routes; only automatic queues a score job."
+          },
+          {
+            "artifact": "views.py",
+            "start_line": 32,
+            "end_line": 32,
+            "role": "control",
+            "explanation": "Checkbox states leaving it unchecked gives human review on the same terms."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Pre-decision withdrawal of automatic route (store.action 'withdraw-auto')",
+        "required_behavior": "The applicant can withdraw the automatic route before a decision and have it honored (converted to manual).",
+        "observed_code_behavior": "withdraw-auto requires stage=='pending', sets route='manual' and logs the change; UI exposes it only while pending and automatic. Once a decision is made (stage declined/offered) the route cannot be switched, which is consistent with 'pre-decision' scope.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 161,
+            "end_line": 164,
+            "role": "operation",
+            "explanation": "Pending-only guard, route set to manual, event logged."
+          },
+          {
+            "artifact": "views.py",
+            "start_line": 53,
+            "end_line": 53,
+            "role": "control",
+            "explanation": "Withdraw control shown only at pending automatic stage."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Contest action capturing applicant statement (store.action 'appeal')",
+        "required_behavior": "After an automatic refusal the applicant can submit a statement and contest the refusal.",
+        "observed_code_behavior": "appeal requires stage=='declined' and a non-empty statement, records the statement as an event, and moves stage to 'contested'. UI exposes the appeal form at stage 'declined'.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 187,
+            "end_line": 190,
+            "role": "operation",
+            "explanation": "Declined + non-empty statement required; statement stored; stage set to contested."
+          },
+          {
+            "artifact": "views.py",
+            "start_line": 54,
+            "end_line": 54,
+            "role": "control",
+            "explanation": "Appeal form rendered at declined stage."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Authorized officer human review of contested case (store.action 'review')",
+        "required_behavior": "An authorized officer can review the contested refusal and record an outcome with reasons.",
+        "observed_code_behavior": "review is gated to staff (assigned officer) at 0153-0154; requires unrestricted and (stage=='contested' or pending manual); requires result in ('offered','declined') and a non-empty reason; sets stage to the result and logs a decision event.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 153,
+            "end_line": 154,
+            "role": "control",
+            "explanation": "review requires staff (assigned officer)."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 191,
+            "end_line": 196,
+            "role": "operation",
+            "explanation": "Contested/pending-manual guard, outcome+reason required, stage set to result, decision logged."
+          },
+          {
+            "artifact": "views.py",
+            "start_line": 61,
+            "end_line": 62,
+            "role": "control",
+            "explanation": "Officer review form shown for contested or pending manual cases."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Human reversal reflected in served offer (app.py offer endpoint + store.offer)",
+        "required_behavior": "An authorized human reversal must change the actual offer served to the applicant.",
+        "observed_code_behavior": "After review sets stage='offered', the offer endpoint permits stage in ('accepted','offered') and not restricted, and store.offer returns the case's amount/term/email. The served offer therefore reflects the case state produced by the officer's reversal.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "app.py",
+            "start_line": 100,
+            "end_line": 103,
+            "role": "propagation",
+            "explanation": "Offer served only when stage offered/accepted and unrestricted; calls store.offer."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 111,
+            "end_line": 112,
+            "role": "propagation",
+            "explanation": "Offer payload built from current case amount/term/email."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 195,
+            "end_line": 195,
+            "role": "operation",
+            "explanation": "Officer review sets stage to 'offered', enabling the offer endpoint."
+          }
+        ],
+        "decisive_unknown": ""
+      }
+    ],
+    "proposed_status": "SUPPORTED",
+    "summary": "All in-scope targets are supported by the supplied source. The automatic route is opt-in with a same-terms manual default (store.py:0074-0075, 0077-0082; views.py:0032). Pre-decision withdrawal converts a pending automatic case to manual (store.py:0161-0164; views.py:0053). A declined case exposes an appeal that requires a non-empty statement and moves to 'contested' (store.py:0187-0190; views.py:0054). Officer-only review accepts contested cases, requires an outcome and reason, and sets stage to 'offered'/'declined' (store.py:0153-0154, 0191-0196; views.py:0061-0062). The offer endpoint serves the case amount/term only when stage is offered/accepted and unrestricted (app.py:0100-0103; store.py:0111-0112), so an officer reversal changes the actual offer. Applicability (significant refusal, valid explicit consent) is stipulated, not code-verified.",
+    "missing_information": [
+      "Whether the refusal is 'significant' and consent 'valid separate explicit' is stipulated by the scenario, not verifiable in source.",
+      "Effectiveness/independence of human review (meaningful consideration) is not determinable from source; only the recorded officer action and reason are observable."
+    ]
+  }
+}

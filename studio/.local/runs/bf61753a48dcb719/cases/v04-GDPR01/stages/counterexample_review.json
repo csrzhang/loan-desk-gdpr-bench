@@ -1,0 +1,91 @@
+{
+  "stage": "counterexample_review",
+  "input_hash": "709fffda953672760cbe1f7a3a4d27458aa53f9ed19da5572bf2aa6068a1a689",
+  "seconds": 5.424,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 12720,
+        "output_tokens": 1020,
+        "total_tokens": 13740,
+        "input_token_details": {
+          "cache_read": 9984,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "recommended_status": "SUPPORTED",
+    "counterexamples": [
+      "No feasible in-scope counterexample found: a POST /apply carrying a 'hobby' field is rejected at store.py:0067 before any INSERT, and no rendered form input (views.py:0031-0032) offers a purposeless attribute.",
+      "The 'auto' checkbox is a route/consent choice, not an applicant attribute; it is not a necessity defect under the named predicate.",
+      "Officer-side 'verify' band import (store.py:0158-0160) and preference/campaign flows are outside the applicant-field minimization predicate."
+    ],
+    "unsupported_assumptions": [
+      "Treating the 'auto' checkbox as outside the data-minimization scope is a scoping judgment; it is defensible because it is a consent/route choice rather than an applicant attribute, but it is an interpretive choice, not a source fact.",
+      "The draft's claim that parsing is 'bounded' relies on max_num_fields=18 and size<=16000; these bound volume, not field identity, so they are supporting but not decisive for minimization."
+    ],
+    "anchors": [
+      {
+        "artifact": "views.py",
+        "start_line": 31,
+        "end_line": 32,
+        "role": "control",
+        "explanation": "Application form renders only email, amount, term, income band and the optional 'auto' route checkbox; no purposeless input such as a hobby is offered."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 83,
+        "end_line": 84,
+        "role": "propagation",
+        "explanation": "POST /apply passes the parsed data dict directly to store.submit, so submit's allowlist governs what is accepted."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 65,
+        "end_line": 67,
+        "role": "control",
+        "explanation": "submit() enforces set(data) <= {email, amount, term, income, auto} and rejects any other field with 'Unexpected application field.' — the decisive minimization control."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 73,
+        "end_line": 78,
+        "role": "operation",
+        "explanation": "Income band and route validated, then INSERT persists only owner, officer, email, amount, term, income, route, stage; no extra applicant attribute is stored."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 36,
+        "end_line": 38,
+        "role": "control",
+        "explanation": "cases schema columns (email, amount, term, income, confirmed, route, stage) contain no field lacking a business purpose in this fixture."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 111,
+        "end_line": 112,
+        "role": "propagation",
+        "explanation": "offer() sends onward only case id, email, amount and term — the necessary delivery/offer fields."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 114,
+        "end_line": 116,
+        "role": "propagation",
+        "explanation": "portable() exports only email, amount and income, bounding onward disclosure of applicant fields."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 50,
+        "end_line": 55,
+        "role": "control",
+        "explanation": "POST body constrained to urlencoded form, size <=16000, max_num_fields=18, duplicates rejected before flattening into data."
+      }
+    ],
+    "review_summary": "Confirmed. The scenario's applicability facts (email for delivery, amount/term for the offer, income band for assessment; hobby purposeless) are present, so the predicate applies. Each required target was independently inspected: the form (views.py:0031-0032) offers only the necessary inputs plus an optional route checkbox; the accepted payload is gated by a strict allowlist in submit() (store.py:0067) that rejects any unexpected field such as a hobby before persistence; the INSERT (store.py:0077-0078) and schema (store.py:0036-0038) persist only necessary attributes; onward sends via offer() (store.py:0112) and portable() (store.py:0116) are limited to necessary fields; and request parsing is bounded (app.py:0050-0055). No feasible in-scope counterexample exists in the supplied source. The draft's scoping of the 'auto' checkbox and officer-side verify flow is a reasonable boundary, not a defect. Status SUPPORTED stands."
+  }
+}

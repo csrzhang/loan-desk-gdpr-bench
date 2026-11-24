@@ -1,0 +1,119 @@
+{
+  "stage": "counterexample_review",
+  "input_hash": "29c23889c73661199a0bfc7a18ec19014b4617b53732abd9605c467973c95dea",
+  "seconds": 5.389,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 13508,
+        "output_tokens": 1188,
+        "total_tokens": 14696,
+        "input_token_details": {
+          "cache_read": 896,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "recommended_status": "SUPPORTED",
+    "counterexamples": [
+      "Post-decision route change is not modeled (store.py:0162 requires stage=='pending'), but the rule only requires honoring pre-decision withdrawal, which is satisfied; this is not an in-scope counterexample.",
+      "Review is blocked while restricted (store.py:0192) and the offer endpoint refuses restricted cases (app.py:0102); the scenario does not stipulate a restriction, so this does not defeat the in-scope path.",
+      "An automatic 'offered' outcome has no contest form (views.py:0054), but the rule concerns contesting a refusal, and the scenario stipulates a refusal, so this is out of scope."
+    ],
+    "unsupported_assumptions": [
+      "That the human review is substantively 'effective' (independent, meaningful consideration) cannot be established from source; only the recorded officer action, outcome and reason are observable.",
+      "That the refusal is 'significant' and the consent 'valid separate explicit' is stipulated by the scenario, not verified in code."
+    ],
+    "anchors": [
+      {
+        "artifact": "store.py",
+        "start_line": 74,
+        "end_line": 75,
+        "role": "control",
+        "explanation": "Route is 'automatic' only when 'auto'=='yes'; otherwise 'manual' — the manual alternative is the default."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 32,
+        "end_line": 32,
+        "role": "control",
+        "explanation": "Applicant-facing checkbox explicitly choosing automatic decision, stating withdrawal before decision and contest rights, and that leaving it unchecked gives human review on the same terms."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 131,
+        "end_line": 135,
+        "role": "trigger",
+        "explanation": "Automatic scoring declines when amount exceeds the band limit and records the decision — the qualifying automatic refusal."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 161,
+        "end_line": 164,
+        "role": "operation",
+        "explanation": "Pre-decision withdrawal: while stage is 'pending', route is switched to 'manual' and logged."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 53,
+        "end_line": 53,
+        "role": "control",
+        "explanation": "Withdraw control shown only at pending automatic stage."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 187,
+        "end_line": 190,
+        "role": "operation",
+        "explanation": "Appeal requires stage 'declined' and a non-empty statement, records the statement, and moves stage to 'contested'."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 54,
+        "end_line": 54,
+        "role": "control",
+        "explanation": "Appeal form rendered at declined stage."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 153,
+        "end_line": 154,
+        "role": "control",
+        "explanation": "review is gated to the assigned officer (staff)."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 191,
+        "end_line": 196,
+        "role": "operation",
+        "explanation": "Officer review accepts contested or pending-manual cases, requires outcome and reason, sets stage to result, logs decision."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 61,
+        "end_line": 62,
+        "role": "control",
+        "explanation": "Officer review form shown for contested or pending manual cases."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 100,
+        "end_line": 103,
+        "role": "propagation",
+        "explanation": "Offer served only when stage offered/accepted and unrestricted; calls store.offer."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 111,
+        "end_line": 112,
+        "role": "propagation",
+        "explanation": "Offer payload built from current case amount/term/email, so an officer 'offered' reversal changes the actual offer."
+      }
+    ],
+    "review_summary": "Confirmed SUPPORTED. Each required target is present and reachable in the supplied source. The automatic route is opt-in with a same-terms manual default (store.py:0074-0075; views.py:0032). Pre-decision withdrawal converts a pending automatic case to manual (store.py:0161-0164; views.py:0053). A declined case exposes an appeal requiring a non-empty statement and moving to 'contested' (store.py:0187-0190; views.py:0054). Officer-only review accepts contested cases, requires outcome and reason, and sets stage to 'offered'/'declined' (store.py:0153-0154, 0191-0196; views.py:0061-0062). The offer endpoint serves the case amount/term only when offered/accepted and unrestricted (app.py:0100-0103; store.py:0111-0112), so an officer reversal changes the actual offer. The noted limits (post-decision route change, restriction blocking, no contest for an 'offered' outcome) are outside the stipulated scenario and do not defeat the in-scope path. Applicability (significant refusal, valid explicit consent) is stipulated, not code-verified."
+  }
+}

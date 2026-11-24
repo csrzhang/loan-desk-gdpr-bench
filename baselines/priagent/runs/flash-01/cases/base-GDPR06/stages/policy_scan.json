@@ -1,0 +1,53 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "428e6ec37838207f74176ae0a31cab040221911aad95335aa0e0f90247181fa7",
+  "seconds": 6.53,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9887,
+        "output_tokens": 1022,
+        "total_tokens": 10909,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "On an authenticated borrower's GET request for the access copy of one specified case (/case/{cid}/access), the service returns a JSON copy containing the case's supplied and derived data (application record incl. decision stage, route, confirmed band), processing information (NOTICE), partner source events, decision/related events, queued job states, and the owner's preferences — while excluding any other applicant's data.",
+    "applicability_facts": [
+      "Scenario: authenticated applicant requests the copy of one specified case, including derived decision, source, linked activities and processing information.",
+      "Scenario: another applicant has separate data in the same database.",
+      "app.py:0068-0071 requires a session (who) before any case route is served; app.py:0100-0106 handles GET /case/{cid}/access, requires who==c['owner'] (403 'Borrower required.' otherwise) and returns store.access(db,c) as application/json with Content-Disposition attachment.",
+      "app.py:0095 resolves the case via store.get_case(db,who,cid), which filters WHERE id=? AND (owner=? OR officer=?) (store.py:0055-0058), so the case is scoped to the requesting identity.",
+      "store.py:0118-0122 access() builds the copy from: the case row (application: amount, term, income, confirmed, route, stage, restricted), NOTICE as processing_information, events for cid only (timeline: application, partner notice, decision, appeal, correction, dispute, release, closure), jobs for cid only (kind,state), and choices filtered by owner=c['owner'] (preferences).",
+      "store.py:0160 records the partner source as a 'partner notice' event containing the Income Registry band and NOTICE; store.py:0135/0196 record decision events with the derived outcome and comparison/reason.",
+      "store.py:0009 NOTICE supplies processing information (purposes, limits, rights, recipients, retention, no international transfer)."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "Officers (who==c['officer']) may open the case detail page (app.py:0110-0112) but the /access download is restricted to the owner (app.py:0105); this is a narrower access path, not an exception to the borrower's copy.",
+      "No third-party-rights redaction or restriction-based withholding is implemented for the access copy; the scenario supplies no conflicting third-party rights, so no exception is invoked.",
+      "store.py:0114-0116 portable() is a separate portability export gated on stage=='accepted' and is not the Article 15 copy."
+    ],
+    "required_controls": [
+      "Authentication gate: session identity required before case routes (app.py:0068-0071).",
+      "Ownership check on the access copy: require(who==c['owner']) before store.access (app.py:0105).",
+      "Case scoping in lookup: get_case filters by owner/officer and cid (store.py:0055-0058).",
+      "Copy content assembly: application row + NOTICE + events(cid) + jobs(cid) + choices(owner) (store.py:0118-0122).",
+      "Per-case isolation of events and jobs by cid, and preferences by the case owner, so another applicant's rows are not included (store.py:0120-0122).",
+      "Non-cacheable delivery: Cache-Control no-store header (app.py:0030) and JSON attachment disposition (app.py:0107-0109)."
+    ],
+    "assessment_limits": [
+      "Assessment is static reading of the supplied app.py, store.py, views.py; no code was executed and no runtime output was observed.",
+      "The scenario's 'verified borrower' status is treated as the authenticated owner session; verification mechanics beyond login (app.py:0060-0066) are not modeled.",
+      "Whether the copy is complete for all Article 15(1) elements (e.g., retention periods, recipients, existence of automated decision-making logic) is judged only against what NOTICE and the stored rows contain; no external data sources exist.",
+      "No assessment of legal deadlines, identity-verification adequacy, or supervisory outcomes; only the named technical predicate is assessed.",
+      "Officer-side views (views.py:0042-0080) are outside the access-copy predicate except as they reuse store.access for the detail page."
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+--- a/store.py
++++ b/store.py
+@@ -192,7 +192,7 @@
+         require(not c["restricted"] and (stage=="contested" or (stage=="pending" and c["route"]=="manual")),"Case unavailable for human determination.")
+         result=data.get("result")
+         require(result in ("offered","declined") and data.get("reason","").strip(),"Choose an outcome and explain your assessment.")
+-        db.execute("UPDATE cases SET stage=? WHERE id=?",(result,cid))
++        db.execute("UPDATE cases SET stage=? WHERE id=?",(stage if stage=="contested" else result,cid))
+         event(db,cid,"decision",f"{who} reviewed: {result}. "+data["reason"])
+     elif op=="accept":
+         require(stage=="offered" and not c["restricted"],"An available offer is required.")

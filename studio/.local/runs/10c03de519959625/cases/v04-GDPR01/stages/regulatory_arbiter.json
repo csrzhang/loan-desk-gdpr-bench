@@ -1,0 +1,91 @@
+{
+  "stage": "regulatory_arbiter",
+  "input_hash": "bf32fa65fee308c416639601d5441775164c9071ef37baf683f3f494036b6a56",
+  "seconds": 6.397,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 13543,
+        "output_tokens": 1442,
+        "total_tokens": 14985,
+        "input_token_details": {
+          "cache_read": 0,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "case_id": "case-c3966d6c34ae67a8",
+    "rule_id": "GDPR01",
+    "status": "SUPPORTED",
+    "short_explanation": "The /apply form renders only email, amount, term, income and the auto route checkbox; the accepted payload is allowlisted to those keys, persistence writes only those fields into a schema with no hobby column, and onward payloads are limited to email/amount/term and email/amount/income. No purposeless field is collected, accepted, persisted or forwarded.",
+    "detailed_explanation": "Code facts: The customer dashboard builds the application form at views.py 0031-0032 from inputbox(\"Contact email\",\"email\"), inputbox(\"Requested amount (EUR)\",\"amount\"), select(\"Term in months\",\"term\",[6,12,24,36]), select(\"Income band\",\"income\",[\"low\",\"medium\",\"high\"]) and a single checkbox name=\"auto\" value=\"yes\"; no other applicant attribute is rendered. The POST body is parsed at app.py 0053-0055 into data (max_num_fields=18, duplicate keys rejected) and dispatched at app.py 0083-0084 to store.submit. store.py 0067 enforces require(set(data) <= {\"email\",\"amount\",\"term\",\"income\",\"auto\"},\"Unexpected application field.\"), so a key such as \"hobby\" is refused before any write. The cases schema at store.py 0036-0038 has columns email, amount, term, income, confirmed, route, stage, restricted and no free-form or hobby column; the INSERT at store.py 0077-0078 writes owner, officer, email, amount, term, income, route, stage, and the summary title at store.py 0079 is derived from amount and term. Onward payloads: offer() at store.py 0111-0112 returns case id, email, amount, term; portable() at store.py 0114-0116 returns email, amount, income; transfer at store.py 0201-0203 stores only that portable payload in receiver.payload.\n\nRequirement: Article 5(1)(c) as scoped here requires that the application form and the accepted /apply payload — including what is persisted or sent onward — be limited to the applicant inputs necessary for the stated purposes: contact email for delivery, amount and term for the requested offer, income band for assessment. The scenario stipulates that a hobby has no business purpose in this fixture, so any collection, acceptance, persistence or forwarding of a hobby field would be an in-scope counterexample. The trigger is present: the scenario describes an actual application submission through this form and payload path.\n\nJustification: Each stage of the data path is bounded to the necessary set. The form offers no hobby-type field (views.py 0031-0032); the server-side allowlist rejects any unexpected key (store.py 0067), so a hobby value cannot enter the accepted payload; persistence targets a schema without such a column and writes only the necessary attributes plus the route/stage bookkeeping (store.py 0036-0038, 0077-0079); and onward sends carry only email/amount/term (offer) and email/amount/income (portable/transfer) (store.py 0111-0116, 0201-0203). The \"auto\" checkbox is a processing-route selection (automatic vs manual review, store.py 0075) tied to the notice's automatic-decision option, not an additional applicant attribute, so it does not create a minimization defect. No supported in-scope counterexample appears in the supplied artifacts, and no decisive unresolved dependency remains within the named behavior; the verdict is therefore SUPPORTED for this scoped obligation only.",
+    "evidence": [
+      {
+        "artifact": "views.py",
+        "start_line": 31,
+        "end_line": 32,
+        "role": "operation",
+        "explanation": "Customer /apply form renders only email, amount, term, income and the 'auto' route checkbox; no hobby or other purposeless field is offered."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 53,
+        "end_line": 55,
+        "role": "propagation",
+        "explanation": "POST body parsed into data with bounded field count and duplicate rejection; no extra fields synthesized."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 83,
+        "end_line": 84,
+        "role": "propagation",
+        "explanation": "/apply forwards the parsed payload to store.submit, the sole application collection sink."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 67,
+        "end_line": 67,
+        "role": "control",
+        "explanation": "Allowlist set(data) <= {email, amount, term, income, auto} rejects any unexpected key such as 'hobby'."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 36,
+        "end_line": 38,
+        "role": "control",
+        "explanation": "cases schema has no hobby column; only email, amount, term, income, route, stage etc. can be persisted."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 77,
+        "end_line": 79,
+        "role": "operation",
+        "explanation": "INSERT persists only email, amount, term, income, route, stage; summary title derived from amount and term."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 111,
+        "end_line": 116,
+        "role": "propagation",
+        "explanation": "Onward payloads limited: offer() sends email/amount/term; portable() sends email/amount/income."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 201,
+        "end_line": 203,
+        "role": "propagation",
+        "explanation": "Transfer stores only the portable payload (email, amount, income) for the receiving controller."
+      }
+    ],
+    "missing_information": [
+      "Assessment rests solely on the supplied source text; no execution, runtime probing or repository access was performed.",
+      "Only the named minimization behavior (form fields, accepted payload, persistence, onward sends) is assessed; other GDPR obligations are out of scope.",
+      "Whether the 'auto' route checkbox is strictly 'necessary' is not decided; it is treated as a processing-route choice, not an applicant attribute.",
+      "No conclusion is drawn about upstream or hidden implementation beyond the supplied artifacts."
+    ]
+  }
+}

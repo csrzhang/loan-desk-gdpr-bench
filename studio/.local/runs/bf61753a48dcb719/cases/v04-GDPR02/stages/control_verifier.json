@@ -1,0 +1,128 @@
+{
+  "stage": "control_verifier",
+  "input_hash": "055d4670149814702794616b02d15c50072df4895f755c5ae6e199091e748818",
+  "seconds": 13.291,
+  "invocations": 2,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 11739,
+        "output_tokens": 1097,
+        "total_tokens": 12836,
+        "input_token_details": {
+          "cache_read": 1152,
+          "cache_creation": 0
+        }
+      }
+    },
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 11739,
+        "output_tokens": 1072,
+        "total_tokens": 12811,
+        "input_token_details": {
+          "cache_read": 11520,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "checks": [
+      {
+        "target": "cases.confirmed (partner-confirmed income band) — underwriting-only use",
+        "required_behavior": "The partner-confirmed band must be read only for the underwriting/credit decision, not for marketing selection or delivery.",
+        "observed_code_behavior": "verify writes data['band'] into cases.confirmed (0159) and logs it as supplied 'for underwriting' (0160). The only read of c['confirmed'] is in drain's score branch (0132), where band=c['confirmed'] or c['income'] feeds the automatic underwriting decision (0133-0135). No other consumer of confirmed exists in the supplied source.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 157,
+            "end_line": 160,
+            "role": "trigger",
+            "explanation": "Partner band enters cases.confirmed, purpose-bound to underwriting."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 131,
+            "end_line": 135,
+            "role": "operation",
+            "explanation": "Sole read of confirmed band is the automatic score/underwriting decision."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "eligible_campaign audience predicate",
+        "required_behavior": "Marketing audience selection must use only permitted subscription/consent fields and case eligibility fields, never the confirmed income band.",
+        "observed_code_behavior": "eligible_campaign selects owner from cases filtered on restricted=0 and stage!='abandoned' (0102), then requires enabled promotions and not enabled objection (0103). It does not reference income or confirmed.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 100,
+            "end_line": 103,
+            "role": "control",
+            "explanation": "Audience predicate uses only identity, case eligibility and promotions/objection choices."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 105,
+            "end_line": 109,
+            "role": "propagation",
+            "explanation": "campaign() queues promotions solely via eligible_campaign."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Promotion delivery content (drain promotion branch and action promotion)",
+        "required_behavior": "Promotion delivery must not carry the confirmed income band.",
+        "observed_code_behavior": "drain's promotion branch is gated by eligible_campaign and emits a generic message 'A new loan offer is available.' (0140-0142). action 'promotion' is gated by eligible_campaign (0170) and queues the job (0171) without band content.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 140,
+            "end_line": 142,
+            "role": "operation",
+            "explanation": "Promotion event body contains no income band."
+          },
+          {
+            "artifact": "store.py",
+            "start_line": 165,
+            "end_line": 171,
+            "role": "control",
+            "explanation": "Owner promotion action gated by eligible_campaign, not by confirmed band."
+          }
+        ],
+        "decisive_unknown": ""
+      },
+      {
+        "target": "Offer output (store.offer) and marketing-adjacent payloads",
+        "required_behavior": "Offer/marketing-adjacent outputs must not expose the confirmed band.",
+        "observed_code_behavior": "offer returns case id, email, amount and term only (0112); confirmed band is not included.",
+        "outcome": "supports",
+        "anchors": [
+          {
+            "artifact": "store.py",
+            "start_line": 111,
+            "end_line": 112,
+            "role": "propagation",
+            "explanation": "Offer payload omits the confirmed band."
+          }
+        ],
+        "decisive_unknown": ""
+      }
+    ],
+    "proposed_status": "SUPPORTED",
+    "summary": "Static review of the supplied source shows the partner-confirmed band (cases.confirmed) is written only by 'verify' as underwriting input and read only in drain's automatic score branch. Marketing audience selection (eligible_campaign) and delivery (drain promotion branch, action promotion) rely solely on owner identity, promotions/objection choices and case eligibility (restricted, stage); promotion content and offer payloads omit the band. No path uses the confirmed band for marketing selection or delivery, consistent with the purpose-limitation predicate. No code was executed.",
+    "missing_information": [
+      "No runtime execution or observation was performed; assessment is static source review only.",
+      "portable() exports the declared income field on a data-portability request; that is a separate data-subject right, not marketing use, and is outside this predicate.",
+      "No upstream or hidden implementation is inferred; only the supplied artifacts are authoritative."
+    ]
+  }
+}

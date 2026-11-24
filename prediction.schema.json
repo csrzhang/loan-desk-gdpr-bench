@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Scoped GDPR demo prediction",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["case_id", "verdict", "evidence", "explanation"],
+  "properties": {
+    "case_id": {"type": "string", "minLength": 1},
+    "verdict": {"enum": ["SUPPORTED", "CONTRADICTED", "INSUFFICIENT", "NOT_APPLICABLE"]},
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "start_line", "end_line", "quote", "supports"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1},
+          "start_line": {"type": "integer", "minimum": 1},
+          "end_line": {"type": "integer", "minimum": 1},
+          "quote": {"type": "string", "minLength": 1},
+          "supports": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "explanation": {"type": "string", "minLength": 1}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"verdict": {"enum": ["SUPPORTED", "CONTRADICTED"]}}},
+      "then": {"properties": {"evidence": {"minItems": 1}}}
+    }
+  ]
+}

@@ -1,0 +1,97 @@
+{
+  "stage": "regulatory_arbiter",
+  "input_hash": "7e09a643bf6ee8be6dfde9d09cde5ec228fce7baf10c6a66aa8176c85a7ceef5",
+  "seconds": 6.518,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 13621,
+        "output_tokens": 1421,
+        "total_tokens": 15042,
+        "input_token_details": {
+          "cache_read": 1152,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "case_id": "case-48c2734dcb673294",
+    "rule_id": "GDPR08",
+    "status": "SUPPORTED",
+    "short_explanation": "Erase is gated on stage=='abandoned' and deletes the case row; summaries, events and jobs cascade (foreign_keys=ON), so drain has no job rows to replay and cannot resurrect the target; retrieval is per-cid/owner so an unrelated active case remains available.",
+    "detailed_explanation": "Code facts: The erase path is reached via POST /case/<cid>/erase (app.py:0097-0099), which calls store.action(db,who,cid,'erase',data). In store.py:0210-0212 the handler requires stage=='abandoned' (else 409) and then executes DELETE FROM cases WHERE id=? for that single cid. The schema (store.py:0039-0044) declares summaries(cid), events(cid) and jobs(cid) as REFERENCES cases ON DELETE CASCADE, and database() sets PRAGMA foreign_keys=ON on every connection (store.py:0026), so the summary row, the event log and any queued jobs for that cid are removed together with the case row. drain (store.py:0124-0143) selects jobs WHERE cid=? AND state='queued' from the jobs table and only then updates cases/events; with no job rows remaining for the erased cid there is nothing to iterate, so no event insert or stage update can recreate the target. Retrieval is scoped per cid/owner/officer: get_case (store.py:0055-0058) and the dashboard query (app.py:0077) filter by id and owner/officer, so deleting one cid leaves an unrelated active case retrievable. The abandon action (store.py:0205-0209) sets stage='abandoned' and cancels queued jobs, establishing the eligible state the erase gate depends on; views.py:0071 exposes erase only for abandoned owner cases.\n\nRequirement: GDPR Art. 17(1)(a) with Art. 17(3) exceptions stipulated absent: on erasure of the eligible abandoned application, the case and its business-retrievable copies (summary, events, pending jobs) must be erased, an unrelated active case must remain available, and later job replay must not resurrect the target. The scenario supplies the trigger (abandoned, no longer necessary, no retention/disclosure exception) and the counter-case (an active case that remains necessary).\n\nJustification: The verified static facts satisfy each element of the predicate: eligibility gate plus single-row deletion (store.py:0210-0212), cascade removal of summary/events/jobs under enforced foreign keys (store.py:0026, 0039-0044), replay driven solely by surviving jobs rows (store.py:0124-0143), and per-cid retrieval preserving the unrelated active case (store.py:0055-0058, app.py:0077). No in-scope counterexample appears in the supplied source. The only residual uncertainty is runtime effectiveness of the cascade pragma, which is set on the same connection used for the erase transaction, so the static inference is sound and does not warrant INSUFFICIENT; no execution is claimed.",
+    "evidence": [
+      {
+        "artifact": "store.py",
+        "start_line": 210,
+        "end_line": 212,
+        "role": "operation",
+        "explanation": "Erase handler: requires stage=='abandoned' then DELETE FROM cases WHERE id=? — the sole deletion of the target case row."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 39,
+        "end_line": 44,
+        "role": "control",
+        "explanation": "summaries, events and jobs reference cases with ON DELETE CASCADE, so business-retrievable copies are removed with the case row."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 26,
+        "end_line": 26,
+        "role": "control",
+        "explanation": "PRAGMA foreign_keys=ON applied on every connection, making the cascade effective for the erase transaction."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 124,
+        "end_line": 143,
+        "role": "propagation",
+        "explanation": "drain replays only existing jobs rows for the cid; after cascade none remain, so no event insert or stage update can resurrect the target."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 55,
+        "end_line": 58,
+        "role": "control",
+        "explanation": "get_case scopes retrieval to owner/officer by cid, so deleting one case does not affect an unrelated active case."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 97,
+        "end_line": 99,
+        "role": "trigger",
+        "explanation": "POST /case/<cid>/erase dispatches to store.action(...,'erase'), confirming the erase path is reachable."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 205,
+        "end_line": 209,
+        "role": "trigger",
+        "explanation": "abandon sets stage='abandoned' and cancels queued jobs, establishing the eligible state the erase gate depends on."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 77,
+        "end_line": 77,
+        "role": "propagation",
+        "explanation": "Dashboard lists cases by owner/officer, unaffected by deleting another cid."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 71,
+        "end_line": 71,
+        "role": "control",
+        "explanation": "UI exposes erase only for stage=='abandoned' owner cases, consistent with the eligibility gate."
+      }
+    ],
+    "missing_information": [
+      "Cascade effectiveness is inferred statically from PRAGMA foreign_keys=ON (store.py:0026); no execution or database inspection was performed.",
+      "Copies outside the modeled tables (receiver payloads, choices, backups, external logs) are not addressed by the erase path and are outside the named predicate's scope.",
+      "No retention-override or Art. 17(3) exception handling exists in code; the stipulated absence of exceptions is a scenario input, not a code fact."
+    ]
+  }
+}

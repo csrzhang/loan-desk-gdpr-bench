@@ -1,0 +1,51 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "aff2defb9bfb7cd77ded527a15ebb2f367f706425b0265179367732cf083b1c8",
+  "seconds": 6.892,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9845,
+        "output_tokens": 718,
+        "total_tokens": 10563,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "Ordinary case and offer routes (/case/{id} and /case/{id}/offer) must be reachable only by the authenticated owner or the assigned officer; any other borrower or unassigned officer must be denied.",
+    "applicability_facts": [
+      "Scenario: synthetic EU-established private controller; risk is disclosure of a case or offer via its ordinary case and download routes; permitted principals are the owner and the assigned officer.",
+      "app.py:0068-0071 requires an authenticated session (who) before any case route is served.",
+      "app.py:0092-0095 parses /case/{cid} and resolves the case via store.get_case(db, who, cid).",
+      "store.py:0055-0058 get_case selects the row only WHERE id=? AND (owner=? OR officer=?), raising 404 otherwise — this is the single gate for both the detail route and the offer route.",
+      "app.py:0110-0112 serves the ordinary case detail (op is None) after get_case, with no further principal check.",
+      "app.py:0100-0103 serves /case/{id}/offer after get_case, gated only on stage in (accepted, offered) and not restricted — no additional principal check.",
+      "store.py:0111-0112 offer() returns case id, email, amount and term for the resolved case."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "No exception in the supplied source: get_case applies the owner-or-officer predicate unconditionally for every authenticated principal.",
+      "The offer route's stage/restriction checks (app.py:0102) are availability conditions, not principal exceptions.",
+      "The access/portable routes (app.py:0105) add an owner-only check, but that is outside the named case/offer routes."
+    ],
+    "required_controls": [
+      "Authentication gate before case routes (app.py:0068-0071).",
+      "Owner-or-assigned-officer predicate in the case lookup (store.py:0056) applied to both /case/{id} and /case/{id}/offer.",
+      "Non-matching principals receive 404 'Case unavailable.' (store.py:0057), not the resource.",
+      "Offer payload only produced after the same lookup succeeds (app.py:0100-0103, store.py:0111-0112)."
+    ],
+    "assessment_limits": [
+      "Static reading of supplied source only; no execution, browsing or repository access was performed.",
+      "Officer assignment is fixed at submission (store.py:0076) mapping each customer to one officer; behavior for other officer accounts is inferred from the SQL predicate, not observed.",
+      "Session identity (who) is taken from the server-side session store (app.py:0044-0047); session-forgery or cookie-handling weaknesses were not analyzed.",
+      "Compliance conclusion is limited to the named case and offer routes; other routes (access, portable, transfer, campaign) are out of scope.",
+      "No legal deadline or penalty assessment is made."
+    ]
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "5f65d896cbb889204dd36a27138527bb561d8542c5bfc46e8ebad9ff1b0468a3",
+  "seconds": 6.222,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9840,
+        "output_tokens": 735,
+        "total_tokens": 10575,
+        "input_token_details": {
+          "cache_read": 768,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "Partner-confirmed income band (cases.confirmed, set by the officer \"verify\"/\"notify-release\" actions) must be used only for underwriting (the automatic \"score\" decision and human review). Marketing selection and delivery (campaign audience, promotion jobs) must be restricted to permitted subscription/consent fields (choices: promotions, objection) and case eligibility fields (restricted flag, stage), and must not read the confirmed income band.",
+    "applicability_facts": [
+      "Scenario: opted-in subscriber holds a partner-confirmed income band for underwriting.",
+      "Scenario: no compatible marketing purpose and no new legal basis exists for targeting with that band.",
+      "store.py:0157-0160 verify stores partner band in cases.confirmed; store.py:0180-0182 notify-release also writes confirmed.",
+      "store.py:0131-0135 score job reads c['confirmed'] or c['income'] for the underwriting decision.",
+      "store.py:0100-0103 eligible_campaign selects only owner, restricted and stage, then checks promotions/objection choices.",
+      "store.py:0140-0142 promotion job delivery calls eligible_campaign and writes a generic event without income data.",
+      "store.py:0105-0109 campaign queues promotion jobs only for cases passing eligible_campaign."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "Compatible-purpose or new-legal-basis reuse under Art. 6(4) is not established by the scenario; no such basis is modeled in the source.",
+      "Consent-based marketing (choices 'promotions' on, 'objection' off) is a separate permitted basis for marketing selection, not for income-band targeting."
+    ],
+    "required_controls": [
+      "Underwriting-only read of cases.confirmed: only the score job (store.py:0131-0135) and human review path may consume the confirmed band.",
+      "Campaign audience function (store.py:0100-0103) must derive eligibility solely from identity, promotions/objection choices, restricted flag and stage — no income or confirmed field.",
+      "Promotion delivery (store.py:0140-0142) must emit no income-band value in the event body or payload.",
+      "Officer campaign entry point (store.py:0105-0109) must not pass or join income/confirmed columns into marketing selection.",
+      "Preference/objection handling (store.py:0092-0098) must cancel queued promotion jobs on opt-out or objection."
+    ],
+    "assessment_limits": [
+      "Assessment is limited to the supplied source text; no execution, query tracing or runtime verification was performed.",
+      "Only the named purpose-limitation behavior is assessed; other GDPR obligations (e.g., Art. 13 notice accuracy, Art. 22 safeguards) are out of scope.",
+      "The scenario's legal conditions (no compatible purpose, no new legal basis) are taken as stipulated inputs, not re-derived.",
+      "Whether the officer-facing UI or other unshown code paths could expose the band to marketing is not determinable from the supplied artifacts.",
+      "No claim is made about upstream or hidden implementation beyond these files."
+    ]
+  }
+}

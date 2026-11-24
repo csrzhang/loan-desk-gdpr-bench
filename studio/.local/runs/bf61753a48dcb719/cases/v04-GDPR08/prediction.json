@@ -1,0 +1,70 @@
+{
+  "case_id": "v04-GDPR08",
+  "verdict": "SUPPORTED",
+  "explanation": "Code facts: The erase path is reached via POST /case/<cid>/erase (app.py:0097-0099), which calls store.action(db,who,cid,'erase',data). In store.py:0210-0212 the handler requires stage=='abandoned' (else 409) and then executes DELETE FROM cases WHERE id=? for that single cid. The schema (store.py:0039-0044) declares summaries(cid), events(cid) and jobs(cid) as REFERENCES cases ON DELETE CASCADE, and database() sets PRAGMA foreign_keys=ON on every connection (store.py:0026), so the summary row, the event log and any queued jobs for that cid are removed together with the case row. drain (store.py:0124-0143) selects jobs WHERE cid=? AND state='queued' from the jobs table and only then updates cases/events; with no job rows remaining for the erased cid there is nothing to iterate, so no event insert or stage update can recreate the target. Retrieval is scoped per cid/owner/officer: get_case (store.py:0055-0058) and the dashboard query (app.py:0077) filter by id and owner/officer, so deleting one cid leaves an unrelated active case retrievable. The abandon action (store.py:0205-0209) sets stage='abandoned' and cancels queued jobs, establishing the eligible state the erase gate depends on; views.py:0071 exposes erase only for abandoned owner cases.\n\nRequirement: GDPR Art. 17(1)(a) with Art. 17(3) exceptions stipulated absent: on erasure of the eligible abandoned application, the case and its business-retrievable copies (summary, events, pending jobs) must be erased, an unrelated active case must remain available, and later job replay must not resurrect the target. The scenario supplies the trigger (abandoned, no longer necessary, no retention/disclosure exception) and the counter-case (an active case that remains necessary).\n\nJustification: The verified static facts satisfy each element of the predicate: eligibility gate plus single-row deletion (store.py:0210-0212), cascade removal of summary/events/jobs under enforced foreign keys (store.py:0026, 0039-0044), replay driven solely by surviving jobs rows (store.py:0124-0143), and per-cid retrieval preserving the unrelated active case (store.py:0055-0058, app.py:0077). No in-scope counterexample appears in the supplied source. The only residual uncertainty is runtime effectiveness of the cascade pragma, which is set on the same connection used for the erase transaction, so the static inference is sound and does not warrant INSUFFICIENT; no execution is claimed.",
+  "evidence": [
+    {
+      "path": "store.py",
+      "start_line": 210,
+      "end_line": 212,
+      "quote": "    elif op==\"erase\":\n        require(stage==\"abandoned\",\"Only abandoned applications qualify in this scenario.\",409)\n        db.execute(\"DELETE FROM cases WHERE id=?\",(cid,))",
+      "supports": "Erase handler: requires stage=='abandoned' then DELETE FROM cases WHERE id=? — the sole deletion of the target case row."
+    },
+    {
+      "path": "store.py",
+      "start_line": 39,
+      "end_line": 44,
+      "quote": "        CREATE TABLE IF NOT EXISTS summaries(cid INTEGER PRIMARY KEY REFERENCES cases ON DELETE CASCADE, title TEXT);\n        CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY, cid INTEGER REFERENCES cases ON DELETE CASCADE,\n          kind TEXT, body TEXT, at TEXT);\n        CREATE TABLE IF NOT EXISTS choices(id INTEGER PRIMARY KEY, owner TEXT, purpose TEXT, value INTEGER, version TEXT, at TEXT);\n        CREATE TABLE IF NOT EXISTS jobs(id INTEGER PRIMARY KEY AUTOINCREMENT, cid INTEGER REFERENCES cases ON DELETE CASCADE,\n          kind TEXT, state TEXT DEFAULT 'queued');",
+      "supports": "summaries, events and jobs reference cases with ON DELETE CASCADE, so business-retrievable copies are removed with the case row."
+    },
+    {
+      "path": "store.py",
+      "start_line": 26,
+      "end_line": 26,
+      "quote": "    db.execute(\"PRAGMA foreign_keys=ON\")",
+      "supports": "PRAGMA foreign_keys=ON applied on every connection, making the cascade effective for the erase transaction."
+    },
+    {
+      "path": "store.py",
+      "start_line": 124,
+      "end_line": 143,
+      "quote": "def drain(db,c):\n    cid=c[\"id\"]\n    for job in rows(db,\"SELECT * FROM jobs WHERE cid=? AND state='queued' ORDER BY id\",(cid,)):\n        if c[\"restricted\"] and job[\"kind\"] != \"score\":\n            continue\n        kind=job[\"kind\"]\n        state=\"cancelled\"\n        if kind==\"score\" and c[\"route\"]==\"automatic\" and c[\"stage\"]==\"pending\":\n            band=c[\"confirmed\"] or c[\"income\"]\n            stage=\"offered\" if c[\"amount\"]<=LIMITS[band] else \"declined\"\n            db.execute(\"UPDATE cases SET stage=? WHERE id=?\",(stage,cid))\n            event(db,cid,\"decision\",f\"Automatic {stage}. Amount {c['amount']} compared with {band} limit {LIMITS[band]}.\")\n            state=\"done\"\n        elif kind==\"report\" and enabled(db,c[\"owner\"],\"insights\") and c[\"stage\"]!=\"abandoned\":\n            event(db,cid,\"report\",f\"Monthly principal estimate: EUR {c['amount']/c['term']:.2f}.\")\n            state=\"done\"\n        elif kind==\"promotion\" and eligible_campaign(db,cid):\n            event(db,cid,\"promotion\",\"A new loan offer is available.\")\n            state=\"done\"\n        db.execute(\"UPDATE jobs SET state=? WHERE id=?\",(state,job[\"id\"]))",
+      "supports": "drain replays only existing jobs rows for the cid; after cascade none remain, so no event insert or stage update can resurrect the target."
+    },
+    {
+      "path": "store.py",
+      "start_line": 55,
+      "end_line": 58,
+      "quote": "def get_case(db, who, cid):\n    row = db.execute(\"SELECT * FROM cases WHERE id=? AND (owner=? OR officer=?)\",(cid,who,who)).fetchone()\n    require(row, \"Case unavailable.\", 404)\n    return dict(row)",
+      "supports": "get_case scopes retrieval to owner/officer by cid, so deleting one case does not affect an unrelated active case."
+    },
+    {
+      "path": "app.py",
+      "start_line": 97,
+      "end_line": 99,
+      "quote": "                        if method==\"POST\" and op:\n                            store.action(db,who,cid,op,data)\n                            location=\"/\" if op==\"erase\" else f\"/case/{cid}\"",
+      "supports": "POST /case/<cid>/erase dispatches to store.action(...,'erase'), confirming the erase path is reachable."
+    },
+    {
+      "path": "store.py",
+      "start_line": 205,
+      "end_line": 209,
+      "quote": "    elif op==\"abandon\":\n        require(stage in (\"pending\",\"declined\",\"offered\") and not c[\"restricted\"],\"This case cannot be abandoned.\",409)\n        db.execute(\"UPDATE cases SET stage='abandoned' WHERE id=?\",(cid,))\n        db.execute(\"UPDATE jobs SET state='cancelled' WHERE cid=? AND state='queued'\",(cid,))\n        event(db,cid,\"closure\",\"Application abandoned.\")",
+      "supports": "abandon sets stage='abandoned' and cancels queued jobs, establishing the eligible state the erase gate depends on."
+    },
+    {
+      "path": "app.py",
+      "start_line": 77,
+      "end_line": 77,
+      "quote": "                        cases=store.rows(db,\"SELECT c.id,c.stage,s.title FROM cases c JOIN summaries s ON s.cid=c.id WHERE c.owner=? OR c.officer=? ORDER BY c.id DESC\",(who,who))",
+      "supports": "Dashboard lists cases by owner/officer, unaffected by deleting another cid."
+    },
+    {
+      "path": "views.py",
+      "start_line": 71,
+      "end_line": 71,
+      "quote": "        if stage==\"abandoned\":controls+=act(\"erase\",\"Erase abandoned case and copies\")",
+      "supports": "UI exposes erase only for stage=='abandoned' owner cases, consistent with the eligibility gate."
+    }
+  ]
+}

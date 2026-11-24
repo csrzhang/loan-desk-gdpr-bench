@@ -1,0 +1,96 @@
+{
+  "stage": "counterexample_review",
+  "input_hash": "74ac33ad074e81e185a7cc1478fdce72fb357dc01c917e11c01e25d079272c12",
+  "seconds": 4.591,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 12390,
+        "output_tokens": 982,
+        "total_tokens": 13372,
+        "input_token_details": {
+          "cache_read": 896,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "recommended_status": "CONTRADICTED",
+    "counterexamples": [
+      "Owner POSTs /case/<id>/correct with a new valid email: store.action validates it via email() and inserts a 'correction' event, but no UPDATE cases SET email is issued, so the cases.email column retains the original address. A later GET /case/<id>/offer (even after reopening the DB) returns 'to' = original email from store.offer(c)."
+    ],
+    "unsupported_assumptions": [
+      "The draft's claim that the correction is 'never persisted' is accurate for the email value, but note the 'correction' event IS persisted; the defect is specifically the absence of an UPDATE to cases.email, not total non-persistence.",
+      "No assumption of hidden implementation is made; the conclusion rests only on the shown 'correct' branch lacking an UPDATE."
+    ],
+    "anchors": [
+      {
+        "artifact": "store.py",
+        "start_line": 172,
+        "end_line": 174,
+        "role": "operation",
+        "explanation": "The 'correct' branch validates the email and inserts a 'correction' event only; no UPDATE of cases.email is issued, so the corrected address is not written to the case row."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 60,
+        "end_line": 63,
+        "role": "control",
+        "explanation": "email() validates and returns the value; the return is discarded in the correct branch, confirming no write occurs."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 111,
+        "end_line": 112,
+        "role": "propagation",
+        "explanation": "offer() builds the recipient 'to' from c['email'], the stored case row field, so offers depend on the persisted column being updated."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 55,
+        "end_line": 58,
+        "role": "propagation",
+        "explanation": "get_case re-reads the case row from SQLite per request, so the offer path reflects only the persisted email column."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 22,
+        "end_line": 31,
+        "role": "operation",
+        "explanation": "Fresh connection per request with commit on context exit; persistence across reopening depends on an UPDATE being issued, which the correct branch does not do."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 97,
+        "end_line": 99,
+        "role": "trigger",
+        "explanation": "POST /case/<id>/correct dispatches to store.action with op='correct', scoping the request to the target case id."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 100,
+        "end_line": 109,
+        "role": "propagation",
+        "explanation": "Offer endpoint calls store.offer(db,c) and serializes the result, so the recipient derives from the stored row."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 145,
+        "end_line": 156,
+        "role": "control",
+        "explanation": "action() resolves the case by id and requires owner for non-staff ops, scoping correction to the target case and leaving other cases untouched."
+      },
+      {
+        "artifact": "views.py",
+        "start_line": 66,
+        "end_line": 67,
+        "role": "trigger",
+        "explanation": "UI exposes the 'correct' form to the owner with an email field, confirming the rectification path is reachable."
+      }
+    ],
+    "review_summary": "Confirmed CONTRADICTED. The 'correct' branch (store.py 0172-0174) validates the submitted email and records a 'correction' event but issues no UPDATE of cases.email, so the corrected address is never written to the case row. Offers read the recipient from c['email'] (store.py 0111-0112) via a fresh per-request connection (store.py 0022-0031, 0055-0058), so after reopening the database the next offer uses the stale address. Per-case scoping and owner authorization are present (store.py 0145-0156; app.py 0097-0099), so a separate live case is unaffected. The draft's loci and status are accurate; the only nuance is that the 'correction' event is persisted, but the email value is not."
+  }
+}

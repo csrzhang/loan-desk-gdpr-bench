@@ -1,0 +1,55 @@
+{
+  "stage": "policy_scan",
+  "input_hash": "64bd692c1956e2d6cf8f6374cb4611110b737cbb1e94c09d11bffc8037bf1fac",
+  "seconds": 5.302,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 9907,
+        "output_tokens": 945,
+        "total_tokens": 10852,
+        "input_token_details": {
+          "cache_read": 640,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "technical_predicate": "After a qualifying automatic credit refusal, the applicant can submit a statement, contest the refusal, and obtain effective human review by an authorized officer whose reversal changes the actual offer; a manual (non-automatic) alternative is available; and pre-decision withdrawal of the automatic route is honored.",
+    "applicability_facts": [
+      "Scenario stipulates a qualifying significant automatic credit refusal (Art. 22(1)) and valid separate explicit consent under Art. 22(2)(c).",
+      "Scenario stipulates the applicant contests, submits their view, and an authorized officer approves.",
+      "Scenario stipulates manual selection and pre-decision withdrawal are exercised.",
+      "Source: automatic route is opt-in via 'auto'=yes (store.py:0074-0075, views.py:0032); automatic scoring declines when amount exceeds band limit (store.py:0131-0135).",
+      "Source: appeal requires stage 'declined' plus a non-empty statement and moves stage to 'contested' (store.py:0187-0190); UI exposes it only at stage 'declined' (views.py:0054).",
+      "Source: review is restricted to assigned officer, requires stage 'contested' or pending manual route, and sets stage to 'offered'/'declined' with a reason (store.py:0153-0154, 0191-0196; views.py:0061-0062).",
+      "Source: offer endpoint serves the case amount/term only when stage is 'accepted' or 'offered' and unrestricted (app.py:0100-0103; store.py:0111-0112), so an officer 'offered' result changes the actual offer.",
+      "Source: manual alternative is the default route when 'auto' is not 'yes' (store.py:0075); pre-decision withdrawal switches route to 'manual' while stage is 'pending' (store.py:0161-0164; views.py:0053)."
+    ],
+    "applicability": "present",
+    "relevant_exceptions": [
+      "Art. 22(2)(c) explicit consent is stipulated as valid, so the Art. 22(2) prohibition exception applies as an input, not as a code finding.",
+      "Withdrawal of the automatic route is only honored while stage is 'pending'; after a decision the route cannot be switched (store.py:0162).",
+      "Review is unavailable while the case is restricted (store.py:0192), and the offer endpoint refuses restricted cases (app.py:0102).",
+      "Appeal is only reachable at stage 'declined'; an 'offered' automatic outcome has no contest path (views.py:0054)."
+    ],
+    "required_controls": [
+      "Opt-in automatic decision route distinct from manual route (store.py:0074-0075; views.py:0032).",
+      "Pre-decision withdrawal converting the case to manual review (store.py:0161-0164; views.py:0053).",
+      "Contest action capturing the applicant's statement and moving the case to 'contested' (store.py:0187-0190; views.py:0054).",
+      "Officer-only human determination with recorded outcome and reasons (store.py:0153-0154, 0191-0196; views.py:0061-0062).",
+      "Human reversal reflected in the served offer (app.py:0100-0103; store.py:0111-0112).",
+      "Manual alternative available on the same terms (store.py:0075; views.py:0032)."
+    ],
+    "assessment_limits": [
+      "No execution, repository, or runtime tools were used; findings are static reading of the supplied source only.",
+      "Whether the refusal is 'significant' and consent 'valid separate explicit' is stipulated by the scenario, not verified in code.",
+      "Effectiveness of human review (e.g., independence, meaningful consideration) is not fully determinable from source; only the recorded officer action and reason are observable.",
+      "No legal deadlines or additional obligations are inferred beyond the named rule.",
+      "Upstream implementation is not assumed; only the supplied artifacts are considered."
+    ]
+  }
+}

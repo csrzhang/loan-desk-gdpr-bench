@@ -1,0 +1,79 @@
+{
+  "stage": "locus_finder",
+  "input_hash": "df981c558aa2f2ef23ea4639658eabaaa396cc891c9f436c7660505c82734311",
+  "seconds": 4.716,
+  "invocations": 1,
+  "responses": [
+    {
+      "model": "deepseek-flash",
+      "usage": {
+        "input_tokens": 10611,
+        "output_tokens": 829,
+        "total_tokens": 11440,
+        "input_token_details": {
+          "cache_read": 9728,
+          "cache_creation": 0
+        }
+      }
+    }
+  ],
+  "output": {
+    "loci": [
+      {
+        "artifact": "views.py",
+        "start_line": 31,
+        "end_line": 32,
+        "rationale": "Application form renders only email, amount, term, income band and the optional 'auto' route checkbox; no hobby or other purposeless input is offered to the applicant."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 50,
+        "end_line": 55,
+        "rationale": "POST body is constrained to urlencoded form, size <=16000, max_num_fields=18, no duplicates, then flattened into data — the accepted payload boundary before submit()."
+      },
+      {
+        "artifact": "app.py",
+        "start_line": 83,
+        "end_line": 84,
+        "rationale": "Entrypoint: POST /apply passes the parsed data dict directly to store.submit, so the allowlist in submit governs what is accepted."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 65,
+        "end_line": 67,
+        "rationale": "submit() enforces the decisive allowlist set(data) <= {email, amount, term, income, auto}, rejecting any unexpected field (e.g. hobby) with 'Unexpected application field.'"
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 73,
+        "end_line": 78,
+        "rationale": "Validation of income band and route, then INSERT persists only owner, officer, email, amount, term, income, route, stage — no extra applicant attribute is stored."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 36,
+        "end_line": 38,
+        "rationale": "cases schema columns (email, amount, term, income, confirmed, route, stage) contain no field lacking a business purpose in this fixture."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 111,
+        "end_line": 112,
+        "rationale": "offer() sends onward only case id, email, amount and term — the necessary delivery/offer fields."
+      },
+      {
+        "artifact": "store.py",
+        "start_line": 114,
+        "end_line": 116,
+        "rationale": "portable() exports only email, amount and income, bounding onward disclosure of applicant fields."
+      }
+    ],
+    "path_summary": "POST /apply (app.py:0083-0084) receives a bounded, duplicate-free form payload (app.py:0050-0055) rendered from a form limited to email, amount, term, income and the optional auto route (views.py:0031-0032). store.submit enforces a strict allowlist {email, amount, term, income, auto} (store.py:0067), so a purposeless field such as a hobby is rejected before any persistence. Accepted values are validated (store.py:0069-0074) and persisted only into the necessary cases columns (store.py:0036-0038, 0077-0078). Downstream, offer() forwards only id/email/amount/term (store.py:0112) and portable() only email/amount/income (store.py:0116). The predicate (form and accepted payload, including persistence and onward sends, limited to necessary fields) is satisfied by the supplied source.",
+    "missing_boundaries": [
+      "No runtime execution or observed behavior; assessment is static reading of the supplied artifacts only.",
+      "The optional 'auto' consent checkbox is treated as a route/consent choice, not an applicant data attribute; its necessity is not evaluated here.",
+      "Officer-side 'verify' partner band import (store.py:0158-0160) and preference/campaign flows are outside the named applicant-field minimization predicate and not assessed.",
+      "No upstream or hidden implementation is inferred; only the supplied artifacts establish the controls."
+    ]
+  }
+}
